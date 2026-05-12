@@ -120,4 +120,53 @@ fun ApplianceManagerScreen(
     }
     }
 }
+@Composable
+fun ApplianceCard(
+    appliance: Appliance,
+    isOwner: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val style = getCategoryStyle(appliance.category)
 
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(44.dp).background(style.backgroundColor, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = style.icon, contentDescription = appliance.category, tint = style.color, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(appliance.name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color(0xFF212121))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier.background(style.backgroundColor, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(appliance.category, fontSize = 11.sp, color = style.color, fontWeight = FontWeight.Medium)
+                    }
+                    Text("·", fontSize = 12.sp, color = Color.Gray)
+                    Text("${appliance.wattage}W", fontSize = 12.sp, color = Color.Gray)
+                }
+                if (appliance.notes.isNotEmpty()) Text(appliance.notes, fontSize = 11.sp, color = Color.Gray)
+            }
+            if (isOwner) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF1565C0), modifier = Modifier.size(18.dp))
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFB71C1C), modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+    }
+}
