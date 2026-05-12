@@ -32,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -295,7 +296,8 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                     when (tab) {
                         HistoryTab.DAILY -> DailyUsageTab()
                         HistoryTab.BREAKDOWN -> BreakdownTab()
-                        else -> { }
+                        HistoryTab.CARBON -> CarbonTab()
+                        HistoryTab.TRENDS -> TrendsTab()
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -328,11 +330,8 @@ private fun DailyUsageTab() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
                 ) {
-                    Text(
-                        String.format("%.0f", value),
-                        fontSize = 10.sp,
-                        color = if (isSat) Color(0xFFB71C1C) else Color.Gray
-                    )
+                    Text(String.format("%.0f", value), fontSize = 10.sp,
+                        color = if (isSat) Color(0xFFB71C1C) else Color.Gray)
                     Spacer(modifier = Modifier.height(2.dp))
                     Box(
                         modifier = Modifier
@@ -346,11 +345,8 @@ private fun DailyUsageTab() {
                             )
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        day, fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isSat) Color(0xFFB71C1C) else Color(0xFF424242)
-                    )
+                    Text(day, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+                        color = if (isSat) Color(0xFFB71C1C) else Color(0xFF424242))
                 }
             }
         }
@@ -382,18 +378,12 @@ private fun BreakdownTab() {
                     .padding(vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(color, RoundedCornerShape(2.dp))
-                )
+                Box(modifier = Modifier
+                    .size(10.dp)
+                    .background(color, RoundedCornerShape(2.dp)))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    label,
-                    modifier = Modifier.width(60.dp),
-                    fontSize = 13.sp,
-                    color = Color(0xFF212121)
-                )
+                Text(label, modifier = Modifier.width(60.dp),
+                    fontSize = 13.sp, color = Color(0xFF212121))
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
@@ -411,13 +401,9 @@ private fun BreakdownTab() {
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "${(fraction * 100).toInt()}%",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = color,
-                    modifier = Modifier.width(32.dp)
-                )
+                Text("${(fraction * 100).toInt()}%",
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = color, modifier = Modifier.width(32.dp))
             }
         }
     }
@@ -427,6 +413,150 @@ private fun BreakdownTab() {
         body = "Your air conditioner accounts for 35% of household usage. " +
                 "Raising the set temperature by 1°C can reduce AC energy use by up to 10%.",
         tint = Color(0xFF1565C0)
+    )
+}
+
+// ── Carbon Tab ────────────────────────────────────────────────────────────────
+@Composable
+private fun CarbonTab() {
+    SummaryStatsRow(
+        StatItem("This Week", "90.3 kg CO₂", Color(0xFF2E7D32)),
+        StatItem("Daily Avg", "12.9 kg", Color(0xFF388E3C)),
+        StatItem("Grid Factor", "0.79 kg/kWh", Color(0xFF455A64))
+    )
+    ChartCard(
+        title = "Daily CO₂ Emissions (kg)",
+        subtitle = "Australia grid emission factor: 0.79 kg CO₂/kWh"
+    ) {
+        val co2Data = weeklyData.map { (day, kwh) -> day to kwh * 0.79f }
+        val maxCo2 = co2Data.maxOf { it.second }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            co2Data.forEach { (day, co2) ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    Text(String.format("%.1f", co2), fontSize = 9.sp,
+                        color = Color(0xFF6A1B9A))
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(30.dp)
+                            .height((co2 / maxCo2 * 110).dp)
+                            .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                            .background(
+                                when {
+                                    co2 > 15f -> Color(0xFF6A1B9A)
+                                    co2 > 12f -> Color(0xFFAB47BC)
+                                    else -> Color(0xFFCE93D8)
+                                }
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(day, fontSize = 11.sp, color = Color(0xFF424242))
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LegendItem(Color(0xFFCE93D8), "< 12 kg")
+            LegendItem(Color(0xFFAB47BC), "12–15 kg")
+            LegendItem(Color(0xFF6A1B9A), "> 15 kg")
+        }
+    }
+    InsightCard(
+        icon = "🌿",
+        title = "Your Carbon Footprint",
+        body = "This week your household emitted an estimated 90.3 kg of CO₂ — " +
+                "equivalent to driving a petrol car roughly 380 km. Shifting peak-hour " +
+                "appliance use to off-peak can reduce this by 10–15%.",
+        tint = Color(0xFF2E7D32)
+    )
+}
+
+// ── Trends Tab ────────────────────────────────────────────────────────────────
+@Composable
+private fun TrendsTab() {
+    val monthTotal = weeklyData.sumOf { it.second.toDouble() }
+    SummaryStatsRow(
+        StatItem("Monthly Total", String.format("%.0f kWh", monthTotal * 4), Color(0xFF0D47A1)),
+        StatItem("Best Week", "W2 — 87.2", Color(0xFF2E7D32)),
+        StatItem("Worst Week", "W3 — 104.6", Color(0xFFB71C1C))
+    )
+    ChartCard(
+        title = "4-Week Usage Trend (kWh)",
+        subtitle = "Line chart — connected to Room in A4"
+    ) {
+        val maxVal = monthlyTrend.maxOf { it.second }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            monthlyTrend.forEach { (week, value) ->
+                val isBest = value == monthlyTrend.minOf { it.second }
+                val isWorst = value == monthlyTrend.maxOf { it.second }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    Text(
+                        String.format("%.0f", value),
+                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        color = when {
+                            isWorst -> Color(0xFFB71C1C)
+                            isBest -> Color(0xFF2E7D32)
+                            else -> Color.Gray
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(52.dp)
+                            .height((value / maxVal * 100).dp)
+                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                            .background(
+                                when {
+                                    isWorst -> Color(0xFFEF9A9A)
+                                    isBest -> Color(0xFFA5D6A7)
+                                    else -> Color(0xFF64B5F6)
+                                }
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(week, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                        color = Color(0xFF424242))
+                    if (isBest) Text("best", fontSize = 9.sp, color = Color(0xFF2E7D32))
+                    if (isWorst) Text("high", fontSize = 9.sp, color = Color(0xFFB71C1C))
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(color = Color(0xFFEEEEEE))
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Monthly total:", fontSize = 13.sp, color = Color.Gray)
+            Text(
+                String.format("%.0f kWh  ≈  AUD %.0f", monthTotal * 4, monthTotal * 4 * 0.18),
+                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF0D47A1)
+            )
+        }
+    }
+    InsightCard(
+        icon = "📈",
+        title = "Trend Analysis",
+        body = "Your usage peaked in Week 3 (104.6 kWh). This aligns with higher weekend " +
+                "occupancy recorded by the SmartMeterSimulator. Setting a WorkManager alert " +
+                "at 80% of your weekly budget can help prevent overage.",
+        tint = Color(0xFF0D47A1)
     )
 }
 
@@ -450,15 +580,11 @@ private fun SummaryStatsRow(vararg stats: StatItem) {
                     modifier = Modifier.padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        stat.label, fontSize = 10.sp,
-                        color = Color.Gray, fontWeight = FontWeight.Medium
-                    )
+                    Text(stat.label, fontSize = 10.sp,
+                        color = Color.Gray, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stat.value, fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold, color = stat.color
-                    )
+                    Text(stat.value, fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = stat.color)
                 }
             }
         }
