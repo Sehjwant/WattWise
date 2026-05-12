@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -13,8 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +43,12 @@ fun HomeScreen(
     onNavigateToMessaging: () -> Unit = {}
 ) {
     val alertCount = viewModel.messages.count { it.type == MessageType.ALERT }
+
+    val contextColor = when (viewModel.contextState) {
+        "Warning"  -> Color(0xFFF57F17)
+        "Critical" -> Color(0xFFB71C1C)
+        else       -> Color(0xFF2E7D32)
+    }
 
     Scaffold(
         topBar = {
@@ -98,6 +110,42 @@ fun HomeScreen(
                 fontSize = 13.sp,
                 color = Color.Gray
             )
+
+            // Context Engine State Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = contextColor)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = when (viewModel.contextState) {
+                            "Warning", "Critical" -> Icons.Default.Warning
+                            else -> Icons.Default.Info
+                        },
+                        contentDescription = "Context State",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "Energy Status: ${viewModel.contextState}",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            viewModel.contextTip,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }
