@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -168,7 +171,108 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            // LazyColumn coming in next commit
+
+            // LazyColumn — real-time SmartMeterSimulator feed
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(viewModel.liveReadings) { reading ->
+                    SensorReadingCard(reading = reading)
+                }
+            }
+        }
+    }
+}
+
+// ── Sensor Reading Card ───────────────────────────────────────────────────────
+@Composable
+fun SensorReadingCard(reading: SensorReading) {
+    val tariffColor = when (reading.tariffTier) {
+        "Peak"     -> Color(0xFFB71C1C)
+        "Shoulder" -> Color(0xFFF57F17)
+        else       -> Color(0xFF2E7D32)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Appliance name
+                Text(
+                    text = reading.applianceName,
+                    modifier = Modifier.weight(2f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF212121)
+                )
+                // Energy kWh
+                Text(
+                    text = String.format("%.2f", reading.energyKwh),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    color = Color(0xFF1B5E20)
+                )
+                // Tariff tier badge
+                Box(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .background(
+                            tariffColor.copy(alpha = 0.12f),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = reading.tariffTier,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = tariffColor
+                    )
+                }
+                // Room temperature
+                Text(
+                    text = "${reading.roomTempC}°",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    color = if (reading.roomTempC > 30)
+                        Color(0xFFB71C1C) else Color(0xFF424242)
+                )
+                // Occupancy
+                Text(
+                    text = "${reading.occupancy}",
+                    modifier = Modifier.weight(0.7f),
+                    fontSize = 13.sp,
+                    color = Color(0xFF424242)
+                )
+            }
+            // Cost per session
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Cost this session:",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+                Text(
+                    text = String.format("$%.4f", reading.costPerSession),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1B5E20)
+                )
+            }
+            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
         }
     }
 }
