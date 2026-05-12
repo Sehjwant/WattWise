@@ -31,4 +31,43 @@ fun getCategoryStyle(category: String): CategoryStyle = when (category) {
     "Lighting" -> CategoryStyle(Color(0xFFF9A825), Color(0xFFFFFDE7), Icons.Default.LightMode)
     else       -> CategoryStyle(Color(0xFF455A64), Color(0xFFECEFF1), Icons.Default.Power)
 }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApplianceManagerScreen(
+    viewModel: WattWiseViewModel,
+    onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Int) -> Unit,
+    onNavigateToSearch: () -> Unit = {}
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Appliance Manager", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToSearch) {
+                        Icon(Icons.Default.Search, contentDescription = "Search Appliances", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1B5E20), titleContentColor = Color.White)
+            )
+        },
+        floatingActionButton = {
+            if (viewModel.isOwner) {
+                FloatingActionButton(
+                    onClick = onNavigateToAdd,
+                    containerColor = Color(0xFF2E7D32),
+                    contentColor = Color.White,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Appliance")
+                }
+            }
+        }
+    ) { innerPadding ->
 
