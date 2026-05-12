@@ -24,3 +24,48 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+@Composable
+fun RegisterScreen(
+    onRegisterSuccess: () -> Unit,
+    onBackToLogin: () -> Unit,
+    viewModel: WattWiseViewModel
+) {
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var selectedRole by remember { mutableStateOf("Owner") }
+    var householdIdInput by remember { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C))
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(40.dp))
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Register",
+                tint = Color(0xFF69F0AE),
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "WattWise", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(text = "Create Your Account", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
+            Spacer(modifier = Modifier.height(24.dp))
