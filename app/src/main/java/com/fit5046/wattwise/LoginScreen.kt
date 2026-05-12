@@ -173,3 +173,31 @@ fun LoginScreen(
                         Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
+                    // Google Sign-In Button (skeleton)
+                    Button(
+                        onClick = {
+                            viewModel.fullName = "Google User"
+                            onLoginSuccess()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                    ) {
+                        Text("Sign In with Google", fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Don't have an account?", color = Color.Gray, fontSize = 14.sp)
+                        TextButton(onClick = { showRegister = true }) {
+                            Text("Register", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
