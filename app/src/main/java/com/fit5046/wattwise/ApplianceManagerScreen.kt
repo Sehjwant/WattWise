@@ -69,5 +69,55 @@ fun ApplianceManagerScreen(
                 }
             }
         }
-    ) { innerPadding ->
+    ) { innerPadding ->Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("${viewModel.appliances.size} appliances", fontSize = 14.sp, color = Color.Gray)
+            Box(
+                modifier = Modifier
+                    .background(if (viewModel.isOwner) Color(0xFF2E7D32) else Color(0xFF1565C0), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = if (viewModel.isOwner) "Owner" else "Member (read-only)",
+                    fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        if (viewModel.appliances.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Power, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(64.dp))
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("No appliances added yet", color = Color.Gray)
+                    if (viewModel.isOwner) Text("Tap + to add your first appliance", fontSize = 13.sp, color = Color(0xFF2E7D32))
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                itemsIndexed(viewModel.appliances) { index, appliance ->
+                    ApplianceCard(
+                        appliance = appliance,
+                        isOwner = viewModel.isOwner,
+                        onEdit = { onNavigateToEdit(appliance.id) },
+                        onDelete = { viewModel.deleteAppliance(appliance.id) }
+                    )
+                    if (index < viewModel.appliances.size - 1) {
+                        HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
+                    }
+                }
+            }
+        }
+    }
+    }
+}
 
