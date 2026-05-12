@@ -59,6 +59,8 @@ fun HomeScreen(
         else                             -> Color(0xFF2E7D32)
     }
 
+    val co2Today = viewModel.dailyCumulativeKwh * 0.79
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -252,6 +254,68 @@ fun HomeScreen(
                             fontSize = 11.sp,
                             color = Color.Gray,
                             modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Occupancy, Temperature and CO2 Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Occupancy", fontSize = 12.sp, color = Color.Gray)
+                        Text(
+                            "${viewModel.occupancyCount} persons",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1565C0)
+                        )
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (viewModel.roomTempC > 30)
+                            Color(0xFFFFEBEE) else Color(0xFFE3F2FD)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Room Temp", fontSize = 12.sp, color = Color.Gray)
+                        Text(
+                            "${viewModel.roomTempC}°C",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            color = if (viewModel.roomTempC > 30)
+                                Color(0xFFB71C1C) else Color(0xFF1565C0)
+                        )
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3E5F5))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("CO₂ Today", fontSize = 12.sp, color = Color.Gray)
+                        Text(
+                            String.format("%.2f kg", co2Today),
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6A1B9A)
                         )
                     }
                 }
