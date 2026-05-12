@@ -1,6 +1,8 @@
 package com.fit5046.wattwise
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -320,6 +322,89 @@ fun HomeScreen(
                     }
                 }
             }
+
+            // Smart Tip Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2F1))
+            ) {
+                Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Color(0xFF00897B), RoundedCornerShape(18.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("💡", fontSize = 18.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "Smart Tip",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00695C),
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = when {
+                                viewModel.currentTariff >= 0.20 ->
+                                    "Peak tariff active — consider deferring the washing machine or dishwasher to off-peak hours."
+                                viewModel.occupancyCount == 0 && viewModel.currentEnergyKwh > 0.1 ->
+                                    "No one is home but energy is active — check for standby waste."
+                                viewModel.roomTempC > 32 ->
+                                    "Room temperature is high — optimise AC settings for efficiency."
+                                viewModel.budgetProgress >= 0.8f ->
+                                    "You've used 80% of your daily budget — switch to low-energy activities."
+                                else -> viewModel.contextTip
+                            },
+                            color = Color(0xFF004D40),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
+            // Household ID + Chat Shortcut Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Household ID", color = Color.Gray, fontSize = 12.sp)
+                        Text(
+                            viewModel.householdId,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1B5E20),
+                            fontSize = 14.sp
+                        )
+                    }
+                    IconButton(onClick = onNavigateToMessaging) {
+                        BadgedBox(badge = {
+                            if (alertCount > 0) {
+                                Badge(containerColor = Color(0xFFE53935)) {
+                                    Text("$alertCount", color = Color.White, fontSize = 9.sp)
+                                }
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Forum,
+                                contentDescription = "Open Household Chat",
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
