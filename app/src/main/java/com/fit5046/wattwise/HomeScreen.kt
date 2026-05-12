@@ -1,0 +1,76 @@
+package com.fit5046.wattwise
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    viewModel: WattWiseViewModel,
+    onNavigateToMessaging: () -> Unit = {}
+) {
+    val alertCount = viewModel.messages.count { it.type == MessageType.ALERT }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Home, contentDescription = null,
+                            tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("WattWise", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToMessaging) {
+                        BadgedBox(
+                            badge = {
+                                if (alertCount > 0) {
+                                    Badge(containerColor = Color(0xFFE53935)) {
+                                        Text("$alertCount", color = Color.White, fontSize = 9.sp)
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Forum,
+                                contentDescription = "Household Chat",
+                                tint = Color(0xFF69F0AE)
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF1B5E20)
+                )
+            )
+        }
+    ) { innerPadding ->
+        // content coming in next commits
+    }
+}
