@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -170,22 +173,18 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                         onValueChange = {},
                         readOnly = true,
                         label = {
-                            Text(
-                                "From", fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
+                            Text("From", fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.7f))
                         },
                         modifier = Modifier
                             .weight(1f)
                             .clickable { showFromPicker = true },
                         trailingIcon = {
-                            Icon(
-                                Icons.Default.DateRange, null,
+                            Icon(Icons.Default.DateRange, null,
                                 modifier = Modifier
                                     .clickable { showFromPicker = true }
                                     .size(18.dp),
-                                tint = Color(0xFF69F0AE)
-                            )
+                                tint = Color(0xFF69F0AE))
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedTextColor = Color.White,
@@ -201,22 +200,18 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                         onValueChange = {},
                         readOnly = true,
                         label = {
-                            Text(
-                                "To", fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
+                            Text("To", fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.7f))
                         },
                         modifier = Modifier
                             .weight(1f)
                             .clickable { showToPicker = true },
                         trailingIcon = {
-                            Icon(
-                                Icons.Default.DateRange, null,
+                            Icon(Icons.Default.DateRange, null,
                                 modifier = Modifier
                                     .clickable { showToPicker = true }
                                     .size(18.dp),
-                                tint = Color(0xFF69F0AE)
-                            )
+                                tint = Color(0xFF69F0AE))
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedTextColor = Color.White,
@@ -235,17 +230,13 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.align(Alignment.CenterVertically)
                     ) {
-                        Text(
-                            "Apply",
-                            color = Color(0xFF1B5E20),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                        Text("Apply", color = Color(0xFF1B5E20),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
 
-            // Animated Tab Row
+            // Tab Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,7 +276,7 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                 }
             }
 
-            // Animated tab content placeholder — coming in next commit
+            // Animated Tab Content
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -293,7 +284,7 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFFF5F7F5))
-            ) { _ ->
+            ) { tab ->
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -301,9 +292,228 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Tab content coming in next commits
+                    when (tab) {
+                        HistoryTab.DAILY -> DailyUsageTab()
+                        HistoryTab.BREAKDOWN -> BreakdownTab()
+                        else -> { }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
+    }
+}
+
+// ── Daily Usage Tab ───────────────────────────────────────────────────────────
+@Composable
+private fun DailyUsageTab() {
+    SummaryStatsRow(
+        StatItem("This Week", "114.3 kWh", Color(0xFF1B5E20)),
+        StatItem("Daily Avg", "16.3 kWh", Color(0xFF388E3C)),
+        StatItem("Peak Day", "Sat 21 kWh", Color(0xFFB71C1C))
+    )
+    ChartCard(
+        title = "Daily Usage (kWh)",
+        subtitle = "Bar chart — connected to Room in A4"
+    ) {
+        val maxVal = weeklyData.maxOf { it.second }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            weeklyData.forEach { (day, value) ->
+                val isSat = day == "Sat"
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom
+                ) {
+                    Text(
+                        String.format("%.0f", value),
+                        fontSize = 10.sp,
+                        color = if (isSat) Color(0xFFB71C1C) else Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(30.dp)
+                            .height((value / maxVal * 110).dp)
+                            .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                            .background(
+                                if (isSat) Color(0xFFB71C1C)
+                                else if (value > 15f) Color(0xFFF57F17)
+                                else Color(0xFF2E7D32)
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        day, fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSat) Color(0xFFB71C1C) else Color(0xFF424242)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LegendItem(Color(0xFF2E7D32), "Normal")
+            LegendItem(Color(0xFFF57F17), "> 15 kWh")
+            LegendItem(Color(0xFFB71C1C), "Peak day")
+        }
+    }
+}
+
+// ── Breakdown Tab ─────────────────────────────────────────────────────────────
+@Composable
+private fun BreakdownTab() {
+    SummaryStatsRow(
+        StatItem("Top User", "Air Con 35%", Color(0xFF1565C0)),
+        StatItem("Most Efficient", "Lights 12%", Color(0xFF2E7D32)),
+        StatItem("Total", "5 appliances", Color(0xFF455A64))
+    )
+    ChartCard(
+        title = "Appliance Breakdown",
+        subtitle = "Pie chart — connected to Room in A4"
+    ) {
+        applianceBreakdown.forEach { (label, fraction, color) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(color, RoundedCornerShape(2.dp))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    label,
+                    modifier = Modifier.width(60.dp),
+                    fontSize = 13.sp,
+                    color = Color(0xFF212121)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(Color(0xFFEEEEEE))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction)
+                            .height(18.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(color)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "${(fraction * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = color,
+                    modifier = Modifier.width(32.dp)
+                )
+            }
+        }
+    }
+    InsightCard(
+        icon = "💡",
+        title = "Saving Opportunity",
+        body = "Your air conditioner accounts for 35% of household usage. " +
+                "Raising the set temperature by 1°C can reduce AC energy use by up to 10%.",
+        tint = Color(0xFF1565C0)
+    )
+}
+
+// ── Reusable Composables ──────────────────────────────────────────────────────
+private data class StatItem(val label: String, val value: String, val color: Color)
+
+@Composable
+private fun SummaryStatsRow(vararg stats: StatItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        stats.forEach { stat ->
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        stat.label, fontSize = 10.sp,
+                        color = Color.Gray, fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stat.value, fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold, color = stat.color
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartCard(
+    title: String,
+    subtitle: String,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.Bold,
+                color = Color(0xFF1B5E20), fontSize = 15.sp)
+            Text(subtitle, fontSize = 11.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(16.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun InsightCard(icon: String, title: String, body: String, tint: Color) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.07f)),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+            Text(icon, fontSize = 24.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, color = tint, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(body, fontSize = 13.sp, color = Color(0xFF424242), lineHeight = 18.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier
+            .size(10.dp)
+            .background(color, RoundedCornerShape(2.dp)))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, fontSize = 10.sp, color = Color.Gray)
     }
 }
