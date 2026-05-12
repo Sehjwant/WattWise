@@ -153,3 +153,23 @@ fun LoginScreen(
                         )
                     )
                     Spacer(modifier = Modifier.height(24.dp))
+                    // Sign In Button
+                    Button(
+                        onClick = {
+                            val pErr = validatePassword(password)
+                            if (email.isNotEmpty() && pErr == null && password.isNotEmpty()) {
+                                viewModel.fullName = email.substringBefore("@")
+                                onLoginSuccess()
+                            } else {
+                                if (email.isEmpty()) emailError = "Email is required"
+                                if (password.isEmpty()) passwordError = "Password is required"
+                                else passwordError = pErr
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) {
+                        Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
