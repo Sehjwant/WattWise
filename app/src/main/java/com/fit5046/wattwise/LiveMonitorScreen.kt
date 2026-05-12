@@ -79,7 +79,6 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // SmartMeter status
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "SmartMeter",
@@ -101,7 +100,6 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                             )
                         }
                     }
-                    // Interval
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Interval",
@@ -115,7 +113,6 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    // Context state status
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             "Status",
@@ -137,6 +134,41 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
             }
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Column Headers Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFE8F5E9), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    "Appliance", modifier = Modifier.weight(2f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B5E20)
+                )
+                Text(
+                    "kWh", modifier = Modifier.weight(1f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B5E20)
+                )
+                Text(
+                    "Tariff", modifier = Modifier.weight(1.2f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B5E20)
+                )
+                Text(
+                    "Temp", modifier = Modifier.weight(1f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B5E20)
+                )
+                Text(
+                    "Occ", modifier = Modifier.weight(0.7f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1B5E20)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            // LazyColumn coming in next commit
         }
     }
 }
