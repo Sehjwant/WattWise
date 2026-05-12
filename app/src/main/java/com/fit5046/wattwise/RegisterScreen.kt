@@ -147,3 +147,76 @@ fun RegisterScreen(
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2E7D32), focusedLabelColor = Color(0xFF2E7D32))
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(text = "Account Role", fontWeight = FontWeight.SemiBold, color = Color(0xFF1B5E20), modifier = Modifier.align(Alignment.Start))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = selectedRole == "Owner", onClick = { selectedRole = "Owner" }, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF2E7D32)))
+                        Text("Household Owner", modifier = Modifier.weight(1f))
+                        RadioButton(selected = selectedRole == "Member", onClick = { selectedRole = "Member" }, colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF2E7D32)))
+                        Text("Member", modifier = Modifier.weight(1f))
+                    }
+
+                    if (selectedRole == "Member") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = householdIdInput,
+                            onValueChange = { householdIdInput = it },
+                            label = { Text("Household ID") },
+                            placeholder = { Text("e.g. HH-20261001") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2E7D32), focusedLabelColor = Color(0xFF2E7D32))
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.fullName = fullName.ifEmpty { "New User" }
+                            viewModel.isOwner = selectedRole == "Owner"
+                            if (selectedRole == "Owner") viewModel.householdId = "HH-${System.currentTimeMillis() % 100000}"
+                            onRegisterSuccess()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                    ) {
+                        Text("Register with Google", fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            val pErr = validatePassword(password)
+                            if (fullName.isNotEmpty() && email.isNotEmpty() && pErr == null && password == confirmPassword) {
+                                viewModel.fullName = fullName
+                                viewModel.isOwner = selectedRole == "Owner"
+                                onRegisterSuccess()
+                            } else {
+                                passwordError = pErr
+                                if (password != confirmPassword) confirmPasswordError = "Passwords do not match"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) {
+                        Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Already have an account?", color = Color.Gray, fontSize = 14.sp)
+                        TextButton(onClick = onBackToLogin) {
+                            Text("Sign In", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
