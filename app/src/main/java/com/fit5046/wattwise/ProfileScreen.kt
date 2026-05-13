@@ -252,7 +252,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
             ) {
-                Text("Save Settings", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Save Settings (Validated)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
