@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -236,6 +238,68 @@ fun AddEditApplianceScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Wattage
+            // Guideline 4: field-level inline validation with specific bounded error message
+            // Guideline 5: placeholder specifies unit (watts)
+            OutlinedTextField(
+                value = wattage,
+                onValueChange = { input ->
+                    wattage = input
+                    val w = input.toIntOrNull()
+                    wattageError = when {
+                        input.isEmpty() -> "Wattage is required"
+                        w == null -> "Please enter a valid number"
+                        // Guideline 4: specific bounded error message
+                        w < 1 || w > 50000 ->
+                            "Please enter a wattage between 1 and 50,000 watts"
+                        else -> null
+                    }
+                },
+                label = { Text("Wattage") },
+                // Guideline 5: placeholder specifies measurement unit
+                placeholder = { Text("e.g. 500 (watts)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = wattageError != null,
+                supportingText = {
+                    if (wattageError != null)
+                        Text(wattageError!!, color = MaterialTheme.colorScheme.error)
+                    else
+                    // Always visible hint showing unit — satisfies Guideline 5
+                        Text("Enter power consumption in watts (W)",
+                            color = Color.Gray, fontSize = 11.sp)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2E7D32),
+                    focusedLabelColor = Color(0xFF2E7D32)
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ── Section 2: Additional Notes ───────────────────────────────
+            // Guideline 3: named section with Divider
+            FormSectionHeader(title = "Additional Notes")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Notes
+            // Guideline 5: placeholder text for notes field
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("Notes (optional)") },
+                placeholder = { Text("e.g. runs during off-peak hours only") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                maxLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2E7D32),
+                    focusedLabelColor = Color(0xFF2E7D32)
+                )
+            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
