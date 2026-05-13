@@ -209,3 +209,4 @@ class WattWiseViewModel : ViewModel() {
         )
     }
 }
+// ViewModel manages shared state across all screens including sensor data and messaging
