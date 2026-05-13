@@ -1,4 +1,5 @@
 package com.fit5046.wattwise
+// ProfileScreen: User profile and settings with form validation, energy budget, billing preferences
 
 import android.os.Build
 import androidx.annotation.RequiresApi
