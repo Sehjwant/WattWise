@@ -1,5 +1,6 @@
 package com.example.wattwise
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,11 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -39,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -51,6 +57,7 @@ fun AddEditApplianceScreen(
     applianceId: Int?,
     onDone: () -> Unit
 ) {
+    val context = LocalContext.current
     val isEdit = applianceId != null
     val existing = viewModel.appliances.find { it.id == applianceId }
 
@@ -300,6 +307,74 @@ fun AddEditApplianceScreen(
                 )
             )
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Save / Update Button
+            // Issue 2 fix: shows Toast on successful save
+            Button(
+                onClick = {
+                    val w = wattage.toIntOrNull()
+                    val nameValid = name.isNotEmpty()
+                    val wattageValid = w != null && w in 1..50000
+
+                    if (!nameValid) nameError = "Appliance name is required"
+                    if (!wattageValid) wattageError =
+                        "Please enter a wattage between 1 and 50,000 watts"
+
+                    if (nameValid && wattageValid) {
+                        if (isEdit && existing != null) {
+                            viewModel.updateAppliance(
+                                existing.copy(
+                                    name = name,
+                                    category = selectedCategory,
+                                    wattage = w!!,
+                                    notes = notes
+                                )
+                            )
+                            // Issue 2 fix: success Toast after update
+                            Toast.makeText(
+                                context,
+                                "$name updated successfully",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            viewModel.addAppliance(
+                                Appliance(
+                                    id = viewModel.nextId(),
+                                    name = name,
+                                    category = selectedCategory,
+                                    wattage = w!!,
+                                    notes = notes
+                                )
+                            )
+                            // Issue 2 fix: success Toast after add
+                            Toast.makeText(
+                                context,
+                                "$name added to your household",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        onDone()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Done,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = if (isEdit) "Update Appliance" else "Save Appliance",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
