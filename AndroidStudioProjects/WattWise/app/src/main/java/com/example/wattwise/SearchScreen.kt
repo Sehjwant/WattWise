@@ -1,6 +1,7 @@
 package com.example.wattwise
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -98,12 +99,22 @@ fun SearchScreen(viewModel: WattWiseViewModel) {
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // LazyColumn — search results
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                itemsIndexed(viewModel.filteredAppliances) { index, appliance ->
-                    SearchResultCard(appliance = appliance)
-                    if (index < viewModel.filteredAppliances.size - 1) {
-                        HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
+            if (viewModel.filteredAppliances.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No appliances found", color = Color.Gray, fontSize = 16.sp)
+                        Text("Try a different search term",
+                            fontSize = 13.sp, color = Color.Gray)
+                    }
+                }
+            } else {
+                // LazyColumn — search results
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    itemsIndexed(viewModel.filteredAppliances) { index, appliance ->
+                        SearchResultCard(appliance = appliance)
+                        if (index < viewModel.filteredAppliances.size - 1) {
+                            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.5.dp)
+                        }
                     }
                 }
             }
