@@ -281,3 +281,5 @@ fun SectionHeader(title: String) {
         )
     }
 }
+
+// End of ProfileScreen - includes DatePicker, Switch, TimePicker, RadioButton components
