@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 data class Appliance(
     val id: Int,
@@ -124,6 +126,49 @@ class WattWiseViewModel : ViewModel() {
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.category.contains(searchQuery, ignoreCase = true)
         }
+
+    // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
+    private val weatherRepository = WeatherRepository()
+
+    var weather by mutableStateOf(WeatherUiState())
+        private set
+
+    fun fetchWeather() {
+        viewModelScope.launch {
+            weather = WeatherUiState(isLoading = true)
+            // Use user's suburb from profile, fallback to Melbourne
+            val city = suburb.ifBlank { "Melbourne" } + ",AU"
+            weather = weatherRepository.getWeather(city)
+            updateContextFromWeather()
+        }
+    }
+
+    private fun updateContextFromWeather() {
+        val outdoorTemp = weather.outdoorTempC
+        contextState = when {
+            outdoorTemp > 35 && currentEnergyKwh > 1.5 -> "Critical"
+            outdoorTemp > 28 && budgetProgress >= 0.8f  -> "Warning"
+            outdoorTemp < 10 && currentEnergyKwh > 2.0  -> "Warning"
+            budgetProgress >= 1.0f                       -> "Critical"
+            budgetProgress >= 0.8f                       -> "Warning"
+            else                                         -> "Normal"
+        }
+        contextTip = when (contextState) {
+            "Critical" -> "Critical: ${weather.energyImpact}. Shift appliances to off-peak immediately."
+            "Warning"  -> "Warning: ${weather.energyImpact}. Monitor usage closely."
+            else       -> "${weather.description.replaceFirstChar { it.uppercase() }} in ${weather.city}. ${weather.energyImpact}."
+        }
+    }
+
+    // Next Hour Forecast (TFLite placeholder)
+    var nextHourForecastKwh by mutableStateOf(0.0)
+        private set
+
+    fun updateForecast(predictedKwh: Double) {
+        nextHourForecastKwh = predictedKwh
+    }
+
+
 
     // ── Household Messaging ───────────────────────────────────────────────────
     // Seeded with a realistic mix of:
