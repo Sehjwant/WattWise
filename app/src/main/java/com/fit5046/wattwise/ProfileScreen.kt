@@ -75,10 +75,13 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     var fullNameError by remember { mutableStateOf<String?>(null) }
     var suburbError by remember { mutableStateOf<String?>(null) }
 
-    // Fix 2: Confirmation dialog state for removing a member
+    // Confirmation dialog state for removing a member
     var showRemoveDialog by remember { mutableStateOf(false) }
     var memberToRemoveIndex by remember { mutableStateOf(-1) }
     var memberToRemoveName by remember { mutableStateOf("") }
+
+    // Confirmation dialog for sign out
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     // Confirmation dialog for removing a member
     if (showRemoveDialog) {
@@ -103,7 +106,6 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                     onClick = {
                         showRemoveDialog = false
                         viewModel.removeMember(memberToRemoveIndex)
-                        // Fix 2: Toast confirmation after deletion
                         android.widget.Toast.makeText(
                             context,
                             "$memberToRemoveName has been removed from the household",
@@ -117,6 +119,43 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
             dismissButton = {
                 androidx.compose.material3.TextButton(
                     onClick = { showRemoveDialog = false }
+                ) {
+                    Text("Cancel", color = Color(0xFF2E7D32))
+                }
+            }
+        )
+    }
+
+    // Sign out confirmation dialog
+    if (showLogoutDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    "Sign Out",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB71C1C)
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to sign out of WattWise?",
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.logout()
+                    }
+                ) {
+                    Text("Sign Out", color = Color(0xFFB71C1C), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showLogoutDialog = false }
                 ) {
                     Text("Cancel", color = Color(0xFF2E7D32))
                 }
@@ -277,7 +316,6 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
             )
 
             // Household Size — AUTO-CALCULATED from member count
-            // Read-only for everyone — updates automatically when members join/leave
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
@@ -292,13 +330,8 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
+                        Text("Household Size", fontSize = 12.sp, color = Color.Gray)
                         Text(
-                            "Household Size",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            // Auto-calculated from registered members list
                             "${viewModel.householdMembers.size} person${if (viewModel.householdMembers.size != 1) "s" else ""}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -313,16 +346,12 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.size(4.dp))
-                        Text(
-                            "Auto-calculated",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
+                        Text("Auto-calculated", fontSize = 11.sp, color = Color.Gray)
                     }
                 }
             }
 
-            // Household ID — READ-ONLY for EVERYONE (auto-generated on registration)
+            // Household ID — READ-ONLY for EVERYONE
             OutlinedTextField(
                 value = viewModel.householdId,
                 onValueChange = {},
@@ -614,7 +643,6 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                             if (!member.isOwner) {
                                 IconButton(
                                     onClick = {
-                                        // Fix 2: show confirmation dialog before removing
                                         memberToRemoveIndex = index
                                         memberToRemoveName = member.name
                                         showRemoveDialog = true
@@ -654,17 +682,15 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Save Button — blocked if required fields are empty
+            // Save Button
             Button(
                 onClick = {
-                    // Validate required fields on save attempt
                     if (viewModel.fullName.trim().isEmpty()) {
                         fullNameError = "Full name cannot be empty"
                     }
                     if (viewModel.suburb.trim().isEmpty()) {
                         suburbError = "Suburb cannot be empty"
                     }
-                    // Only save if both required fields are filled
                     if (viewModel.fullName.trim().isNotEmpty() &&
                         viewModel.suburb.trim().isNotEmpty()
                     ) {
@@ -683,6 +709,18 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Sign Out Button
+            Button(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB71C1C))
+            ) {
+                Text("Sign Out", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
