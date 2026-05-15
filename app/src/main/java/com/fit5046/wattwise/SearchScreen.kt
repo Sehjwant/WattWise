@@ -1,5 +1,11 @@
 package com.fit5046.wattwise
 
+import androidx.compose.foundation.layout.size
+import kotlin.div
+import kotlin.text.category
+import kotlin.text.compareTo
+import kotlin.times
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

@@ -1,5 +1,7 @@
-package com.example.wattwise
+package com.fit5046.wattwise
 
+import kotlin.text.category
+import kotlin.toString
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

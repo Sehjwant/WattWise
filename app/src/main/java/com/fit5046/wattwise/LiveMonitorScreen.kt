@@ -1,5 +1,6 @@
 package com.fit5046.wattwise
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,23 +39,16 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.DateRange,
-                            contentDescription = null,
-                            tint = Color(0xFF69F0AE),
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Icon(Icons.Default.DateRange, contentDescription = null,
+                            tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Live Monitor",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text("Live Monitor", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -70,7 +64,7 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // Status Bar Card
+            // Status bar
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
@@ -83,11 +77,7 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "SmartMeter",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp
-                        )
+                        Text("SmartMeter", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -95,84 +85,48 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                                     .background(Color(0xFF69F0AE), CircleShape)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Streaming",
-                                color = Color(0xFF69F0AE),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text("Streaming", color = Color(0xFF69F0AE),
+                                fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "Interval",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            "3 sec / row",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Interval", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                        Text("3 sec / row", color = Color.White,
+                            fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "Status",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            viewModel.contextState,
-                            color = when (viewModel.contextState) {
-                                "Warning"  -> Color(0xFFFFD54F)
-                                "Critical" -> Color(0xFFEF9A9A)
-                                else       -> Color(0xFF69F0AE)
-                            },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Status", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                        Text(viewModel.contextState, color = when (viewModel.contextState) {
+                            "Warning" -> Color(0xFFFFD54F)
+                            "Critical" -> Color(0xFFEF9A9A)
+                            else -> Color(0xFF69F0AE)
+                        }, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Column Headers Row
+            // Column headers
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFFE8F5E9), RoundedCornerShape(6.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text(
-                    "Appliance", modifier = Modifier.weight(2f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1B5E20)
-                )
-                Text(
-                    "kWh", modifier = Modifier.weight(1f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1B5E20)
-                )
-                Text(
-                    "Tariff", modifier = Modifier.weight(1.2f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1B5E20)
-                )
-                Text(
-                    "Temp", modifier = Modifier.weight(1f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1B5E20)
-                )
-                Text(
-                    "Occ", modifier = Modifier.weight(0.7f),
-                    fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1B5E20)
-                )
+                Text("Appliance", modifier = Modifier.weight(2f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                Text("kWh", modifier = Modifier.weight(1f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                Text("Tariff", modifier = Modifier.weight(1.2f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                Text("Temp", modifier = Modifier.weight(1f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
+                Text("Occ", modifier = Modifier.weight(0.7f),
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
             }
             Spacer(modifier = Modifier.height(4.dp))
 
-            // LazyColumn — real-time SmartMeterSimulator feed
+            // LazyColumn — real-time SmartMeterSimulator feed (skeleton data)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(viewModel.liveReadings) { reading ->
                     SensorReadingCard(reading = reading)
@@ -182,13 +136,12 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
     }
 }
 
-// ── Sensor Reading Card ───────────────────────────────────────────────────────
 @Composable
 fun SensorReadingCard(reading: SensorReading) {
     val tariffColor = when (reading.tariffTier) {
-        "Peak"     -> Color(0xFFB71C1C)
+        "Peak" -> Color(0xFFB71C1C)
         "Shoulder" -> Color(0xFFF57F17)
-        else       -> Color(0xFF2E7D32)
+        else -> Color(0xFF2E7D32)
     }
 
     Card(
@@ -242,8 +195,7 @@ fun SensorReadingCard(reading: SensorReading) {
                     text = "${reading.roomTempC}°",
                     modifier = Modifier.weight(1f),
                     fontSize = 13.sp,
-                    color = if (reading.roomTempC > 30)
-                        Color(0xFFB71C1C) else Color(0xFF424242)
+                    color = if (reading.roomTempC > 30) Color(0xFFB71C1C) else Color(0xFF424242)
                 )
                 // Occupancy
                 Text(

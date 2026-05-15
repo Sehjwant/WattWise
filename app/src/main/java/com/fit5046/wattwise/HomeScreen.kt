@@ -1,5 +1,6 @@
 package com.fit5046.wattwise
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,10 +46,9 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun HomeScreen(
     viewModel: WattWiseViewModel,
+    // Callback wired in MainActivity to navigate to MessagingScreen
     onNavigateToMessaging: () -> Unit = {}
 ) {
-    val alertCount = viewModel.messages.count { it.type == MessageType.ALERT }
-
     val contextColor = when (viewModel.contextState) {
         "Warning"  -> Color(0xFFF57F17)
         "Critical" -> Color(0xFFB71C1C)
@@ -63,6 +63,9 @@ fun HomeScreen(
 
     val co2Today = viewModel.dailyCumulativeKwh * 0.79
 
+    // Count unread alert messages for the badge
+    val alertCount = viewModel.messages.count { it.type == MessageType.ALERT }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -76,6 +79,9 @@ fun HomeScreen(
                         Text("WattWise", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 },
+                // ── Chat icon — entry point to Firebase MessagingScreen ────────
+                // Badge shows number of automated ContextEngine / WorkManager alerts
+                // so users know there are energy notifications waiting in the chat.
                 actions = {
                     IconButton(onClick = onNavigateToMessaging) {
                         BadgedBox(
@@ -124,7 +130,7 @@ fun HomeScreen(
                 color = Color.Gray
             )
 
-            // Context Engine State Card
+            // ContextEngine State Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -160,7 +166,7 @@ fun HomeScreen(
                 }
             }
 
-            // Live Energy + Tariff Cards
+            // Live Energy Gauge Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -211,7 +217,7 @@ fun HomeScreen(
                 }
             }
 
-            // Daily Budget Progress Bar
+            // Daily Budget Progress — LinearProgressIndicator (required component)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -237,9 +243,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { viewModel.budgetProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp),
+                        modifier = Modifier.fillMaxWidth().height(10.dp),
                         color = progressColor,
                         trackColor = Color(0xFFE0E0E0),
                         strokeCap = StrokeCap.Round
@@ -261,7 +265,7 @@ fun HomeScreen(
                 }
             }
 
-            // Occupancy, Temperature and CO2 Row
+            // Occupancy, Temperature, CO2 row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -323,7 +327,7 @@ fun HomeScreen(
                 }
             }
 
-            // Smart Tip Card
+            // Context-aware tip card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -365,7 +369,7 @@ fun HomeScreen(
                 }
             }
 
-            // Household ID + Chat Shortcut Card
+            // Household ID + Chat shortcut card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -385,6 +389,7 @@ fun HomeScreen(
                             fontSize = 14.sp
                         )
                     }
+                    // Secondary entry point to messaging — shows member count
                     IconButton(onClick = onNavigateToMessaging) {
                         BadgedBox(badge = {
                             if (alertCount > 0) {

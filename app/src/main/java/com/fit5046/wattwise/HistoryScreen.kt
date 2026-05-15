@@ -59,6 +59,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.Locale
 
+// ── Skeleton data (connected to Room in A4) ───────────────────────────────────
 private val weeklyData = listOf(
     "Mon" to 14.2f, "Tue" to 11.8f, "Wed" to 16.5f,
     "Thu" to 13.1f, "Fri" to 18.3f, "Sat" to 21.0f, "Sun" to 19.4f
@@ -74,6 +75,7 @@ private val monthlyTrend = listOf(
     "W1" to 98.4f, "W2" to 87.2f, "W3" to 104.6f, "W4" to 94.3f
 )
 
+// ── Tab definitions ───────────────────────────────────────────────────────────
 private enum class HistoryTab(val label: String, val emoji: String) {
     DAILY("Daily Usage", "⚡"),
     BREAKDOWN("Breakdown", "🥧"),
@@ -87,48 +89,40 @@ private enum class HistoryTab(val label: String, val emoji: String) {
 fun HistoryScreen(viewModel: WattWiseViewModel) {
     val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
     var fromDate by remember { mutableStateOf("") }
-    var toDate by remember { mutableStateOf("") }
+    var toDate   by remember { mutableStateOf("") }
     var showFromPicker by remember { mutableStateOf(false) }
-    var showToPicker by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(HistoryTab.DAILY) }
+    var showToPicker   by remember { mutableStateOf(false) }
+    var selectedTab    by remember { mutableStateOf(HistoryTab.DAILY) }
 
     val fromPickerState = rememberDatePickerState(Instant.now().toEpochMilli())
-    val toPickerState = rememberDatePickerState(Instant.now().toEpochMilli())
+    val toPickerState   = rememberDatePickerState(Instant.now().toEpochMilli())
 
+    // DatePicker dialogs — required Android component
     if (showFromPicker) {
         DatePickerDialog(
             onDismissRequest = { showFromPicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     showFromPicker = false
-                    fromPickerState.selectedDateMillis?.let {
-                        fromDate = formatter.format(Date(it))
-                    }
+                    fromPickerState.selectedDateMillis?.let { fromDate = formatter.format(Date(it)) }
                 }) { Text("OK", color = Color(0xFF2E7D32)) }
             },
             dismissButton = {
-                TextButton(onClick = { showFromPicker = false }) {
-                    Text("Cancel", color = Color.Gray)
-                }
+                TextButton(onClick = { showFromPicker = false }) { Text("Cancel", color = Color.Gray) }
             }
         ) { DatePicker(state = fromPickerState) }
     }
-
     if (showToPicker) {
         DatePickerDialog(
             onDismissRequest = { showToPicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     showToPicker = false
-                    toPickerState.selectedDateMillis?.let {
-                        toDate = formatter.format(Date(it))
-                    }
+                    toPickerState.selectedDateMillis?.let { toDate = formatter.format(Date(it)) }
                 }) { Text("OK", color = Color(0xFF2E7D32)) }
             },
             dismissButton = {
-                TextButton(onClick = { showToPicker = false }) {
-                    Text("Cancel", color = Color.Gray)
-                }
+                TextButton(onClick = { showToPicker = false }) { Text("Cancel", color = Color.Gray) }
             }
         ) { DatePicker(state = toPickerState) }
     }
@@ -138,16 +132,10 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.DateRange, contentDescription = null,
-                            tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp)
-                        )
+                        Icon(Icons.Default.DateRange, contentDescription = null,
+                            tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "History & Charts",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Text("History & Charts", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -161,7 +149,7 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Date Range Filter Bar
+            // ── Date Range Filter bar ─────────────────────────────────────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -169,22 +157,18 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // From date
                     OutlinedTextField(
                         value = fromDate.ifEmpty { "From" },
                         onValueChange = {},
                         readOnly = true,
-                        label = {
-                            Text("From", fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.7f))
-                        },
+                        label = { Text("From", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f)) },
                         modifier = Modifier
                             .weight(1f)
                             .clickable { showFromPicker = true },
                         trailingIcon = {
                             Icon(Icons.Default.DateRange, null,
-                                modifier = Modifier
-                                    .clickable { showFromPicker = true }
-                                    .size(18.dp),
+                                modifier = Modifier.clickable { showFromPicker = true }.size(18.dp),
                                 tint = Color(0xFF69F0AE))
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -196,22 +180,18 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                             focusedLabelColor = Color(0xFF69F0AE)
                         )
                     )
+                    // To date
                     OutlinedTextField(
                         value = toDate.ifEmpty { "To" },
                         onValueChange = {},
                         readOnly = true,
-                        label = {
-                            Text("To", fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.7f))
-                        },
+                        label = { Text("To", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f)) },
                         modifier = Modifier
                             .weight(1f)
                             .clickable { showToPicker = true },
                         trailingIcon = {
                             Icon(Icons.Default.DateRange, null,
-                                modifier = Modifier
-                                    .clickable { showToPicker = true }
-                                    .size(18.dp),
+                                modifier = Modifier.clickable { showToPicker = true }.size(18.dp),
                                 tint = Color(0xFF69F0AE))
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -223,21 +203,19 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                             focusedLabelColor = Color(0xFF69F0AE)
                         )
                     )
+                    // Apply button
                     Button(
-                        onClick = { },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF69F0AE)
-                        ),
+                        onClick = { /* filter Room data in A4 */ },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF69F0AE)),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.align(Alignment.CenterVertically)
                     ) {
-                        Text("Apply", color = Color(0xFF1B5E20),
-                            fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Apply", color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
 
-            // Tab Row
+            // ── Tab Row ───────────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -252,8 +230,7 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .background(
-                                if (isSelected) Color(0xFF69F0AE)
-                                else Color.White.copy(alpha = 0.15f)
+                                if (isSelected) Color(0xFF69F0AE) else Color.White.copy(alpha = 0.15f)
                             )
                             .clickable { selectedTab = tab }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -267,17 +244,15 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                             Text(
                                 tab.label,
                                 fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold
-                                else FontWeight.Normal,
-                                color = if (isSelected) Color(0xFF1B5E20)
-                                else Color.White
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color(0xFF1B5E20) else Color.White
                             )
                         }
                     }
                 }
             }
 
-            // Animated Tab Content
+            // ── Animated tab content ──────────────────────────────────────────
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -294,10 +269,10 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     when (tab) {
-                        HistoryTab.DAILY -> DailyUsageTab()
+                        HistoryTab.DAILY     -> DailyUsageTab()
                         HistoryTab.BREAKDOWN -> BreakdownTab()
-                        HistoryTab.CARBON -> CarbonTab()
-                        HistoryTab.TRENDS -> TrendsTab()
+                        HistoryTab.CARBON    -> CarbonTab()
+                        HistoryTab.TRENDS    -> TrendsTab()
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -306,7 +281,7 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
     }
 }
 
-// ── Daily Usage Tab ───────────────────────────────────────────────────────────
+// ── Tab 1 — Daily Usage (Bar Chart) ──────────────────────────────────────────
 @Composable
 private fun DailyUsageTab() {
     SummaryStatsRow(
@@ -314,10 +289,8 @@ private fun DailyUsageTab() {
         StatItem("Daily Avg", "16.3 kWh", Color(0xFF388E3C)),
         StatItem("Peak Day", "Sat 21 kWh", Color(0xFFB71C1C))
     )
-    ChartCard(
-        title = "Daily Usage (kWh)",
-        subtitle = "Bar chart — connected to Room in A4"
-    ) {
+
+    ChartCard(title = "Daily Usage (kWh)", subtitle = "Bar chart — connected to Room in A4") {
         val maxVal = weeklyData.maxOf { it.second }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -330,8 +303,11 @@ private fun DailyUsageTab() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
                 ) {
-                    Text(String.format("%.0f", value), fontSize = 10.sp,
-                        color = if (isSat) Color(0xFFB71C1C) else Color.Gray)
+                    Text(
+                        String.format("%.0f", value),
+                        fontSize = 10.sp,
+                        color = if (isSat) Color(0xFFB71C1C) else Color.Gray
+                    )
                     Spacer(modifier = Modifier.height(2.dp))
                     Box(
                         modifier = Modifier
@@ -351,6 +327,7 @@ private fun DailyUsageTab() {
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
+        // Colour legend
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             LegendItem(Color(0xFF2E7D32), "Normal")
             LegendItem(Color(0xFFF57F17), "> 15 kWh")
@@ -359,7 +336,7 @@ private fun DailyUsageTab() {
     }
 }
 
-// ── Breakdown Tab ─────────────────────────────────────────────────────────────
+// ── Tab 2 — Appliance Breakdown (Horizontal bar chart) ───────────────────────
 @Composable
 private fun BreakdownTab() {
     SummaryStatsRow(
@@ -367,10 +344,8 @@ private fun BreakdownTab() {
         StatItem("Most Efficient", "Lights 12%", Color(0xFF2E7D32)),
         StatItem("Total", "5 appliances", Color(0xFF455A64))
     )
-    ChartCard(
-        title = "Appliance Breakdown",
-        subtitle = "Pie chart — connected to Room in A4"
-    ) {
+
+    ChartCard(title = "Appliance Breakdown", subtitle = "Pie chart — connected to Room in A4") {
         applianceBreakdown.forEach { (label, fraction, color) ->
             Row(
                 modifier = Modifier
@@ -378,13 +353,15 @@ private fun BreakdownTab() {
                     .padding(vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(modifier = Modifier
-                    .size(10.dp)
-                    .background(color, RoundedCornerShape(2.dp)))
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(color, RoundedCornerShape(2.dp))
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(label, modifier = Modifier.width(60.dp),
-                    fontSize = 13.sp, color = Color(0xFF212121))
+                Text(label, modifier = Modifier.width(60.dp), fontSize = 13.sp, color = Color(0xFF212121))
                 Spacer(modifier = Modifier.width(8.dp))
+                // Bar track
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -401,12 +378,18 @@ private fun BreakdownTab() {
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("${(fraction * 100).toInt()}%",
-                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    color = color, modifier = Modifier.width(32.dp))
+                Text(
+                    "${(fraction * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = color,
+                    modifier = Modifier.width(32.dp)
+                )
             }
         }
     }
+
+    // Insight card
     InsightCard(
         icon = "💡",
         title = "Saving Opportunity",
@@ -416,7 +399,7 @@ private fun BreakdownTab() {
     )
 }
 
-// ── Carbon Tab ────────────────────────────────────────────────────────────────
+// ── Tab 3 — Carbon Emissions ──────────────────────────────────────────────────
 @Composable
 private fun CarbonTab() {
     SummaryStatsRow(
@@ -424,9 +407,10 @@ private fun CarbonTab() {
         StatItem("Daily Avg", "12.9 kg", Color(0xFF388E3C)),
         StatItem("Grid Factor", "0.79 kg/kWh", Color(0xFF455A64))
     )
+
     ChartCard(
         title = "Daily CO₂ Emissions (kg)",
-        subtitle = "Australia grid emission factor: 0.79 kg CO₂/kWh"
+        subtitle = "Australia grid emission factor: 0.79 kg CO₂/kWh — connected to Room in A4"
     ) {
         val co2Data = weeklyData.map { (day, kwh) -> day to kwh * 0.79f }
         val maxCo2 = co2Data.maxOf { it.second }
@@ -440,8 +424,7 @@ private fun CarbonTab() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
                 ) {
-                    Text(String.format("%.1f", co2), fontSize = 9.sp,
-                        color = Color(0xFF6A1B9A))
+                    Text(String.format("%.1f", co2), fontSize = 9.sp, color = Color(0xFF6A1B9A))
                     Spacer(modifier = Modifier.height(2.dp))
                     Box(
                         modifier = Modifier
@@ -452,7 +435,7 @@ private fun CarbonTab() {
                                 when {
                                     co2 > 15f -> Color(0xFF6A1B9A)
                                     co2 > 12f -> Color(0xFFAB47BC)
-                                    else -> Color(0xFFCE93D8)
+                                    else      -> Color(0xFFCE93D8)
                                 }
                             )
                     )
@@ -468,6 +451,7 @@ private fun CarbonTab() {
             LegendItem(Color(0xFF6A1B9A), "> 15 kg")
         }
     }
+
     InsightCard(
         icon = "🌿",
         title = "Your Carbon Footprint",
@@ -478,27 +462,27 @@ private fun CarbonTab() {
     )
 }
 
-// ── Trends Tab ────────────────────────────────────────────────────────────────
+// ── Tab 4 — 30-Day Trends (Line-style sparkline) ──────────────────────────────
 @Composable
 private fun TrendsTab() {
     val monthTotal = weeklyData.sumOf { it.second.toDouble() }
+
     SummaryStatsRow(
         StatItem("Monthly Total", String.format("%.0f kWh", monthTotal * 4), Color(0xFF0D47A1)),
         StatItem("Best Week", "W2 — 87.2", Color(0xFF2E7D32)),
         StatItem("Worst Week", "W3 — 104.6", Color(0xFFB71C1C))
     )
-    ChartCard(
-        title = "4-Week Usage Trend (kWh)",
-        subtitle = "Line chart — connected to Room in A4"
-    ) {
+
+    ChartCard(title = "4-Week Usage Trend (kWh)", subtitle = "Line chart — connected to Room in A4") {
         val maxVal = monthlyTrend.maxOf { it.second }
+        // Simplified line-style segment chart
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
             monthlyTrend.forEach { (week, value) ->
-                val isBest = value == monthlyTrend.minOf { it.second }
+                val isBest  = value == monthlyTrend.minOf { it.second }
                 val isWorst = value == monthlyTrend.maxOf { it.second }
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -506,11 +490,12 @@ private fun TrendsTab() {
                 ) {
                     Text(
                         String.format("%.0f", value),
-                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = when {
                             isWorst -> Color(0xFFB71C1C)
-                            isBest -> Color(0xFF2E7D32)
-                            else -> Color.Gray
+                            isBest  -> Color(0xFF2E7D32)
+                            else    -> Color.Gray
                         }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -522,16 +507,16 @@ private fun TrendsTab() {
                             .background(
                                 when {
                                     isWorst -> Color(0xFFEF9A9A)
-                                    isBest -> Color(0xFFA5D6A7)
-                                    else -> Color(0xFF64B5F6)
+                                    isBest  -> Color(0xFFA5D6A7)
+                                    else    -> Color(0xFF64B5F6)
                                 }
                             )
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(week, fontSize = 13.sp, fontWeight = FontWeight.Medium,
                         color = Color(0xFF424242))
-                    if (isBest) Text("best", fontSize = 9.sp, color = Color(0xFF2E7D32))
-                    if (isWorst) Text("high", fontSize = 9.sp, color = Color(0xFFB71C1C))
+                    if (isBest)  Text("best",  fontSize = 9.sp, color = Color(0xFF2E7D32))
+                    if (isWorst) Text("high",  fontSize = 9.sp, color = Color(0xFFB71C1C))
                 }
             }
         }
@@ -545,11 +530,13 @@ private fun TrendsTab() {
             Text("Monthly total:", fontSize = 13.sp, color = Color.Gray)
             Text(
                 String.format("%.0f kWh  ≈  AUD %.0f", monthTotal * 4, monthTotal * 4 * 0.18),
-                fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF0D47A1)
             )
         }
     }
+
     InsightCard(
         icon = "📈",
         title = "Trend Analysis",
@@ -560,7 +547,8 @@ private fun TrendsTab() {
     )
 }
 
-// ── Reusable Composables ──────────────────────────────────────────────────────
+// ── Reusable composables ──────────────────────────────────────────────────────
+
 private data class StatItem(val label: String, val value: String, val color: Color)
 
 @Composable
@@ -580,11 +568,11 @@ private fun SummaryStatsRow(vararg stats: StatItem) {
                     modifier = Modifier.padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(stat.label, fontSize = 10.sp,
-                        color = Color.Gray, fontWeight = FontWeight.Medium)
+                    Text(stat.label, fontSize = 10.sp, color = Color.Gray,
+                        fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(stat.value, fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold, color = stat.color)
+                    Text(stat.value, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        color = stat.color)
                 }
             }
         }
@@ -604,8 +592,7 @@ private fun ChartCard(
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, fontWeight = FontWeight.Bold,
-                color = Color(0xFF1B5E20), fontSize = 15.sp)
+            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20), fontSize = 15.sp)
             Text(subtitle, fontSize = 11.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(16.dp))
             content()
@@ -627,7 +614,8 @@ private fun InsightCard(icon: String, title: String, body: String, tint: Color) 
             Column {
                 Text(title, fontWeight = FontWeight.Bold, color = tint, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(body, fontSize = 13.sp, color = Color(0xFF424242), lineHeight = 18.sp)
+                Text(body, fontSize = 13.sp, color = Color(0xFF424242),
+                    lineHeight = 18.sp)
             }
         }
     }
@@ -636,9 +624,7 @@ private fun InsightCard(icon: String, title: String, body: String, tint: Color) 
 @Composable
 private fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier
-            .size(10.dp)
-            .background(color, RoundedCornerShape(2.dp)))
+        Box(modifier = Modifier.size(10.dp).background(color, RoundedCornerShape(2.dp)))
         Spacer(modifier = Modifier.width(4.dp))
         Text(label, fontSize = 10.sp, color = Color.Gray)
     }

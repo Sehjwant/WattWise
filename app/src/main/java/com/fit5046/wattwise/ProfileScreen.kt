@@ -1,5 +1,4 @@
 package com.fit5046.wattwise
-// ProfileScreen: User profile and settings with form validation, energy budget, billing preferences
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -17,10 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
@@ -30,13 +32,21 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,8 +67,104 @@ import androidx.compose.ui.unit.sp
 fun ProfileScreen(viewModel: WattWiseViewModel) {
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    var budgetError by remember { mutableStateOf<String?>(null) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timePickerState = rememberTimePickerState(initialHour = 23, initialMinute = 0)
+
+    // Validation states for required fields
     var fullNameError by remember { mutableStateOf<String?>(null) }
     var suburbError by remember { mutableStateOf<String?>(null) }
+
+    // Fix 2: Confirmation dialog state for removing a member
+    var showRemoveDialog by remember { mutableStateOf(false) }
+    var memberToRemoveIndex by remember { mutableStateOf(-1) }
+    var memberToRemoveName by remember { mutableStateOf("") }
+
+    // Confirmation dialog for removing a member
+    if (showRemoveDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRemoveDialog = false },
+            title = {
+                Text(
+                    "Remove Member",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB71C1C)
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to remove $memberToRemoveName from your household? " +
+                            "They will lose access to all shared energy data and alerts.",
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showRemoveDialog = false
+                        viewModel.removeMember(memberToRemoveIndex)
+                        // Fix 2: Toast confirmation after deletion
+                        android.widget.Toast.makeText(
+                            context,
+                            "$memberToRemoveName has been removed from the household",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                ) {
+                    Text("Remove", color = Color(0xFFB71C1C), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showRemoveDialog = false }
+                ) {
+                    Text("Cancel", color = Color(0xFF2E7D32))
+                }
+            }
+        )
+    }
+
+    // TimePicker Dialog
+    if (showTimePicker) {
+        Dialog(onDismissRequest = { showTimePicker = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Select Off-Peak Start Time",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B5E20)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TimePicker(state = timePickerState)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showTimePicker = false }) {
+                            Text("Cancel", color = Color.Gray)
+                        }
+                        TextButton(onClick = {
+                            showTimePicker = false
+                            val h = timePickerState.hour
+                            val m = timePickerState.minute
+                            val amPm = if (h < 12) "AM" else "PM"
+                            val h12 = if (h % 12 == 0) 12 else h % 12
+                            viewModel.offPeakHours =
+                                String.format("%02d:%02d %s", h12, m, amPm)
+                        }) {
+                            Text("OK", color = Color(0xFF2E7D32))
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -108,7 +215,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                         .padding(horizontal = 12.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (viewModel.isOwner) "Household Owner" else "Member",
+                        text = if (viewModel.isOwner) "👑 Household Owner" else "👤 Member",
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -116,10 +223,12 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 }
             }
 
-            // SECTION 1: Account Information
+            // ── SECTION 1: Account Information ────────────────────────────
+            // Guideline 3: Grouped fields with visually distinct labelled sections
             SectionHeader(title = "Account Information")
 
-            // Full Name
+            // Full Name — editable by EVERYONE
+            // Guideline 5: placeholder shows expected input format
             OutlinedTextField(
                 value = viewModel.fullName,
                 onValueChange = {
@@ -143,7 +252,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 )
             )
 
-            // Suburb
+            // Suburb — editable by EVERYONE
             OutlinedTextField(
                 value = viewModel.suburb,
                 onValueChange = {
@@ -167,7 +276,8 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 )
             )
 
-            // Household Size - Auto calculated
+            // Household Size — AUTO-CALCULATED from member count
+            // Read-only for everyone — updates automatically when members join/leave
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
@@ -182,24 +292,37 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Household Size", fontSize = 12.sp, color = Color.Gray)
                         Text(
-                            "${'$'}{viewModel.householdMembers.size} person${'$'}{if (viewModel.householdMembers.size != 1) "s" else ""}",
+                            "Household Size",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                        Text(
+                            // Auto-calculated from registered members list
+                            "${viewModel.householdMembers.size} person${if (viewModel.householdMembers.size != 1) "s" else ""}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF212121)
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Lock, contentDescription = "Auto-calculated",
-                            tint = Color.Gray, modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = "Auto-calculated",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(14.dp)
+                        )
                         Spacer(modifier = Modifier.size(4.dp))
-                        Text("Auto-calculated", fontSize = 11.sp, color = Color.Gray)
+                        Text(
+                            "Auto-calculated",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
                     }
                 }
             }
 
-            // Household ID - Read only
+            // Household ID — READ-ONLY for EVERYONE (auto-generated on registration)
             OutlinedTextField(
                 value = viewModel.householdId,
                 onValueChange = {},
@@ -210,7 +333,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                         if (viewModel.isOwner)
                             "Share this ID with members so they can join your household"
                         else
-                            "Your household identifier - cannot be changed",
+                            "Your household identifier — cannot be changed",
                         color = Color.Gray, fontSize = 11.sp
                     )
                 },
@@ -229,15 +352,319 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Save Button
+            // ── SECTION 2: Energy Budget (Owner only) ─────────────────────
+            // Guideline 3: "Energy Budget" named section with Divider
+            SectionHeader(title = "Energy Budget")
+
+            // Daily Budget Goal
+            // Guideline 4: field-level inline validation with specific bounded error message
+            OutlinedTextField(
+                value = viewModel.budgetGoal,
+                onValueChange = { input ->
+                    if (viewModel.isOwner) {
+                        viewModel.budgetGoal = input
+                        val v = input.toFloatOrNull()
+                        budgetError = when {
+                            input.isEmpty() -> "Budget is required"
+                            v == null -> "Please enter a valid number"
+                            // Guideline 4: specific bounded error message
+                            v < 1 || v > 9999 ->
+                                "Please enter a monthly budget between \$1 and \$9,999"
+                            else -> null
+                        }
+                    }
+                },
+                label = { Text("Daily Budget Goal (kWh)") },
+                placeholder = { Text("e.g. 20.0") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                readOnly = !viewModel.isOwner,
+                enabled = viewModel.isOwner,
+                isError = budgetError != null,
+                supportingText = {
+                    when {
+                        budgetError != null ->
+                            Text(budgetError!!, color = MaterialTheme.colorScheme.error)
+                        !viewModel.isOwner ->
+                            Text(
+                                "Only the Household Owner can edit the budget",
+                                color = Color.Gray, fontSize = 11.sp
+                            )
+                    }
+                },
+                trailingIcon = {
+                    if (!viewModel.isOwner)
+                        Icon(Icons.Default.Lock, contentDescription = "Locked",
+                            tint = Color.Gray, modifier = Modifier.size(18.dp))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2E7D32),
+                    focusedLabelColor = Color(0xFF2E7D32),
+                    disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                    disabledLabelColor = Color.Gray,
+                    disabledTextColor = Color.Gray
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── SECTION 3: Billing Preferences (Owner only) ───────────────
+            // Guideline 3: "Billing Preferences" named section with Divider
+            SectionHeader(title = "Billing Preferences")
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Billing Type", fontSize = 13.sp, color = Color.Gray)
+                if (!viewModel.isOwner) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Lock, contentDescription = null,
+                            tint = Color.Gray, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Owner only", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
+
+            val billingOptions = listOf("Flat Rate", "Time-of-Use", "Solar Feed-In")
+            billingOptions.forEach { option ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    RadioButton(
+                        selected = viewModel.billingType == option,
+                        onClick = { if (viewModel.isOwner) viewModel.billingType = option },
+                        enabled = viewModel.isOwner,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Color(0xFF2E7D32),
+                            disabledSelectedColor = Color.Gray,
+                            disabledUnselectedColor = Color.Gray.copy(alpha = 0.4f)
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Column {
+                        Text(
+                            option, fontSize = 14.sp,
+                            color = if (viewModel.isOwner) Color(0xFF212121) else Color.Gray
+                        )
+                        Text(
+                            text = when (option) {
+                                "Flat Rate" -> "No tariff alerts — fixed rate all day"
+                                "Time-of-Use" -> "Peak/shoulder/off-peak tariff alerts enabled"
+                                "Solar Feed-In" -> "Solar production context active"
+                                else -> ""
+                            },
+                            fontSize = 11.sp, color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Off-Peak Hours TimePicker — editable by EVERYONE
+            OutlinedTextField(
+                value = viewModel.offPeakHours,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Off-Peak Start Time") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showTimePicker = true },
+                trailingIcon = {
+                    Icon(
+                        Icons.Default.DateRange,
+                        contentDescription = "Select Time",
+                        modifier = Modifier
+                            .clickable { showTimePicker = true }
+                            .size(22.dp),
+                        tint = Color(0xFF2E7D32)
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2E7D32),
+                    focusedLabelColor = Color(0xFF2E7D32)
+                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── SECTION 4: Notification Settings ──────────────────────────
+            // Guideline 3: "Notification Settings" named section with Divider
+            SectionHeader(title = "Notification Settings")
+
+            // Switch — Peak-hour alerts — EVERYONE
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Peak-Hour Alerts", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("Notify when tariff enters peak tier",
+                        fontSize = 12.sp, color = Color.Gray)
+                }
+                Switch(
+                    checked = viewModel.notificationsEnabled,
+                    onCheckedChange = { viewModel.notificationsEnabled = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF2E7D32)
+                    )
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFFEEEEEE))
+
+            // Switch — Household sharing — EVERYONE
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Household Sharing", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text("Share energy alerts with household members via Firebase",
+                        fontSize = 12.sp, color = Color.Gray)
+                }
+                Switch(
+                    checked = viewModel.householdSharing,
+                    onCheckedChange = { viewModel.householdSharing = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF2E7D32)
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── SECTION 5: Household Members (OWNER only) ─────────────────
+            if (viewModel.isOwner) {
+                SectionHeader(title = "Household Members")
+
+                Text(
+                    "Remove members who have left the household",
+                    fontSize = 12.sp, color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Members list — connected to Firebase in A4
+                viewModel.householdMembers.forEachIndexed { index, member ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (member.isOwner)
+                                Color(0xFFE8F5E9) else Color(0xFFF5F5F5)
+                        ),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Avatar
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        if (member.isOwner) Color(0xFF2E7D32)
+                                        else Color(0xFF1565C0),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    member.name.first().uppercase(),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(member.name,
+                                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    if (member.isOwner) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    Color(0xFF2E7D32),
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("Owner", color = Color.White, fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                                Text(member.email, fontSize = 12.sp, color = Color.Gray)
+                            }
+                            // Remove button — only for non-owner members
+                            if (!member.isOwner) {
+                                IconButton(
+                                    onClick = {
+                                        // Fix 2: show confirmation dialog before removing
+                                        memberToRemoveIndex = index
+                                        memberToRemoveName = member.name
+                                        showRemoveDialog = true
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Remove Member",
+                                        tint = Color(0xFFB71C1C),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                // Info card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                        Text("ℹ️", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "New members can join by entering your Household ID " +
+                                    "(${viewModel.householdId}) during registration.",
+                            fontSize = 12.sp, color = Color(0xFF0D47A1)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Save Button — blocked if required fields are empty
             Button(
                 onClick = {
+                    // Validate required fields on save attempt
                     if (viewModel.fullName.trim().isEmpty()) {
                         fullNameError = "Full name cannot be empty"
                     }
                     if (viewModel.suburb.trim().isEmpty()) {
                         suburbError = "Suburb cannot be empty"
                     }
+                    // Only save if both required fields are filled
                     if (viewModel.fullName.trim().isNotEmpty() &&
                         viewModel.suburb.trim().isNotEmpty()
                     ) {
@@ -252,7 +679,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
             ) {
-                Text("Save Settings (Validated)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text("Save Settings", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -260,7 +687,7 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     }
 }
 
-// Reusable section header
+// Guideline 3: Reusable section header — bold green label + Divider
 @Composable
 fun SectionHeader(title: String) {
     Row(
@@ -281,5 +708,3 @@ fun SectionHeader(title: String) {
         )
     }
 }
-
-// End of ProfileScreen - includes DatePicker, Switch, TimePicker, RadioButton components
