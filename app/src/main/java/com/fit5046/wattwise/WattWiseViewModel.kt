@@ -1,18 +1,13 @@
 package com.fit5046.wattwise
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
-
-data class Appliance(
-    val id: Int,
-    val name: String,
-    val category: String,
-    val wattage: Int,
-    val notes: String = ""
-)
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 data class SensorReading(
     val applianceName: String,
@@ -29,35 +24,37 @@ data class HouseholdMember(
     val isOwner: Boolean = false
 )
 
-// ── Messaging ─────────────────────────────────────────────────────────────────
-// In A4 this maps directly to a Firestore document:
-//   /households/{householdId}/messages/{messageId}
-// For the skeleton prototype we seed realistic data and handle sends in-memory.
-// MessageType drives the three distinct bubble styles in MessagingScreen.
-// (MessageType and HouseholdMessage are defined in MessagingScreen.kt)
+class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
-class WattWiseViewModel : ViewModel() {
+    // ── Room Database ─────────────────────────────────────────────────────────
+    private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
 
     // ── Auth / User ───────────────────────────────────────────────────────────
     var isLoggedIn  by mutableStateOf(false)
     var isOwner     by mutableStateOf(true)
     var householdId by mutableStateOf("HH-20261001")
 
+    fun logout() {
+        isLoggedIn = false
+        fullName = ""
+        suburb = ""
+    }
+
     // ── Profile / Settings ────────────────────────────────────────────────────
-    var fullName           by mutableStateOf("")
-    var suburb             by mutableStateOf("")
-    var householdSize      by mutableStateOf("2")
-    var budgetGoal         by mutableStateOf("20.0")
-    var billingType        by mutableStateOf("Time-of-Use")
-    var offPeakHours       by mutableStateOf("11:00 PM")
+    var fullName             by mutableStateOf("")
+    var suburb               by mutableStateOf("")
+    var householdSize        by mutableStateOf("2")
+    var budgetGoal           by mutableStateOf("20.0")
+    var billingType          by mutableStateOf("Time-of-Use")
+    var offPeakHours         by mutableStateOf("11:00 PM")
     var notificationsEnabled by mutableStateOf(true)
-    var householdSharing   by mutableStateOf(false)
+    var householdSharing     by mutableStateOf(false)
 
     // ── Household Members ─────────────────────────────────────────────────────
     val householdMembers = mutableStateListOf(
-        HouseholdMember("Alex Johnson", "alex@gmail.com", isOwner = true),
-        HouseholdMember("Sarah Chen",   "sarah@gmail.com"),
-        HouseholdMember("Mike Williams","mike@gmail.com")
+        HouseholdMember("Alex Johnson",  "alex@gmail.com",  isOwner = true),
+        HouseholdMember("Sarah Chen",    "sarah@gmail.com"),
+        HouseholdMember("Mike Williams", "mike@gmail.com")
     )
 
     fun removeMember(index: Int) {
@@ -68,44 +65,64 @@ class WattWiseViewModel : ViewModel() {
         }
     }
 
-    // ── Appliances ────────────────────────────────────────────────────────────
-    val appliances = mutableStateListOf(
-        Appliance(1, "Samsung Washing Machine",  "Laundry",  500,  "Runs during off-peak hours"),
-        Appliance(2, "Mitsubishi Air Conditioner","Cooling", 1800, "Set to 24°C"),
-        Appliance(3, "LG Dishwasher",            "Kitchen", 1200, "Eco mode enabled"),
-        Appliance(4, "LED Downlights x10",       "Lighting",  100, "Living room"),
-        Appliance(5, "Electric Oven",            "Kitchen", 2400, "")
-    )
+    // ── Appliances (Room-backed) ──────────────────────────────────────────────
+    // UI references viewModel.appliances as a mutableStateList —
+    // Room keeps it in sync via the Flow collector in init.
+    val appliances = mutableStateListOf<Appliance>()
 
-    fun addAppliance(appliance: Appliance)   { appliances.add(appliance) }
-    fun deleteAppliance(id: Int)             { appliances.removeIf { it.id == id } }
-    fun updateAppliance(updated: Appliance) {
-        val i = appliances.indexOfFirst { it.id == updated.id }
-        if (i != -1) appliances[i] = updated
+    init {
+        viewModelScope.launch {
+            dao.getAll().collect { list ->
+                if (list.isEmpty()) {
+                    // Seed default appliances on first launch
+                    dao.insert(Appliance(name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
+                    dao.insert(Appliance(name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
+                    dao.insert(Appliance(name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
+                    dao.insert(Appliance(name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
+                    dao.insert(Appliance(name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
+                } else {
+                    appliances.clear()
+                    appliances.addAll(list)
+                }
+            }
+        }
     }
+
+    fun addAppliance(appliance: Appliance) {
+        viewModelScope.launch { dao.insert(appliance) }
+    }
+
+    fun deleteAppliance(id: Int) {
+        viewModelScope.launch { dao.deleteById(id) }
+    }
+
+    fun updateAppliance(updated: Appliance) {
+        viewModelScope.launch { dao.update(updated) }
+    }
+
     fun nextId(): Int = (appliances.maxOfOrNull { it.id } ?: 0) + 1
 
     // ── Sensor / ContextEngine ────────────────────────────────────────────────
-    var currentEnergyKwh    by mutableStateOf(0.85)
-    var currentTariff       by mutableStateOf(0.18)
-    var currentTariffTier   by mutableStateOf("Off-Peak")
-    var roomTempC           by mutableStateOf(24.5)
-    var occupancyCount      by mutableStateOf(2)
-    var dailyCumulativeKwh  by mutableStateOf(12.4)
-    var contextState        by mutableStateOf("Normal")
-    var contextTip          by mutableStateOf("Your energy usage looks great today!")
-    var isWeekend           by mutableStateOf(false)
-    var isHoliday           by mutableStateOf(false)
+    var currentEnergyKwh   by mutableStateOf(0.85)
+    var currentTariff      by mutableStateOf(0.18)
+    var currentTariffTier  by mutableStateOf("Off-Peak")
+    var roomTempC          by mutableStateOf(24.5)
+    var occupancyCount     by mutableStateOf(2)
+    var dailyCumulativeKwh by mutableStateOf(12.4)
+    var contextState       by mutableStateOf("Normal")
+    var contextTip         by mutableStateOf("Your energy usage looks great today!")
+    var isWeekend          by mutableStateOf(false)
+    var isHoliday          by mutableStateOf(false)
 
     // ── Live Monitor Feed ─────────────────────────────────────────────────────
     val liveReadings = mutableStateListOf(
-        SensorReading("Washing Machine",   0.50, "Off-Peak", 23.1, 2, 0.09),
-        SensorReading("Air Conditioner",   1.80, "Peak",     31.5, 3, 0.36),
-        SensorReading("Dishwasher",        1.20, "Shoulder", 22.8, 2, 0.18),
-        SensorReading("LED Lights",        0.10, "Off-Peak", 21.0, 1, 0.02),
-        SensorReading("Electric Oven",     2.40, "Peak",     24.0, 4, 0.48),
-        SensorReading("Washing Machine",   0.50, "Off-Peak", 23.1, 2, 0.09),
-        SensorReading("Air Conditioner",   1.80, "Peak",     31.5, 3, 0.36)
+        SensorReading("Washing Machine", 0.50, "Off-Peak", 23.1, 2, 0.09),
+        SensorReading("Air Conditioner", 1.80, "Peak",     31.5, 3, 0.36),
+        SensorReading("Dishwasher",      1.20, "Shoulder", 22.8, 2, 0.18),
+        SensorReading("LED Lights",      0.10, "Off-Peak", 21.0, 1, 0.02),
+        SensorReading("Electric Oven",   2.40, "Peak",     24.0, 4, 0.48),
+        SensorReading("Washing Machine", 0.50, "Off-Peak", 23.1, 2, 0.09),
+        SensorReading("Air Conditioner", 1.80, "Peak",     31.5, 3, 0.36)
     )
 
     // ── Budget progress ───────────────────────────────────────────────────────
@@ -126,16 +143,6 @@ class WattWiseViewModel : ViewModel() {
         }
 
     // ── Household Messaging ───────────────────────────────────────────────────
-    // Seeded with a realistic mix of:
-    //   • ALERT messages — auto-generated by ContextEngine / WorkManager
-    //   • RECEIVED messages — from other household members
-    //   • SENT messages — from the current user (Owner = Alex)
-    //
-    // In A4: each sendMessage() call writes to Firestore via:
-    //   db.collection("households").document(householdId)
-    //     .collection("messages").add(message)
-    // Incoming messages arrive via a Firestore snapshot listener that
-    // appends to this list in real time across all household devices.
     val messages = mutableStateListOf(
         HouseholdMessage(
             id = 1,
@@ -200,10 +207,6 @@ class WattWiseViewModel : ViewModel() {
         )
     )
 
-    // ── sendMessage ───────────────────────────────────────────────────────────
-    // Appends a SENT message from the current user.
-    // In A4: replaced with a Firestore .add() call. The snapshot listener on
-    // all other household devices will receive it in real time.
     fun sendMessage(text: String) {
         val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
         messages.add(
@@ -212,11 +215,14 @@ class WattWiseViewModel : ViewModel() {
                 senderName = fullName.ifBlank { "Alex Johnson" },
                 body = text,
                 timestamp = java.time.LocalTime.now()
-                    .let { String.format("%d:%02d %s",
-                        if (it.hour % 12 == 0) 12 else it.hour % 12,
-                        it.minute,
-                        if (it.hour < 12) "AM" else "PM"
-                    )},
+                    .let {
+                        String.format(
+                            "%d:%02d %s",
+                            if (it.hour % 12 == 0) 12 else it.hour % 12,
+                            it.minute,
+                            if (it.hour < 12) "AM" else "PM"
+                        )
+                    },
                 type = MessageType.SENT
             )
         )
