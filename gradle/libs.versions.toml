@@ -9,8 +9,8 @@ activityCompose = "1.13.0"
 kotlin = "2.0.21"
 composeBom = "2024.09.00"
 navigationCompose = "2.9.8"
-room = "2.6.1"
-ksp = "2.0.21-1.0.27"
+room = "2.7.0"
+ksp = "2.0.21-1.0.28"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
