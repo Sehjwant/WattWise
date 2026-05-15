@@ -9,6 +9,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
+data class Appliance(
+    val id: Int,
+    val name: String,
+    val category: String,
+    val wattage: Int,
+    val notes: String = ""
+)
+
 data class SensorReading(
     val applianceName: String,
     val energyKwh: Double,
@@ -66,20 +74,17 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Appliances (Room-backed) ──────────────────────────────────────────────
-    // UI references viewModel.appliances as a mutableStateList —
-    // Room keeps it in sync via the Flow collector in init.
     val appliances = mutableStateListOf<Appliance>()
 
     init {
         viewModelScope.launch {
             dao.getAll().collect { list ->
                 if (list.isEmpty()) {
-                    // Seed default appliances on first launch
-                    dao.insert(Appliance(name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
-                    dao.insert(Appliance(name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
-                    dao.insert(Appliance(name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
-                    dao.insert(Appliance(name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
-                    dao.insert(Appliance(name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
+                    dao.insert(Appliance(id = 1, name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
+                    dao.insert(Appliance(id = 2, name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
+                    dao.insert(Appliance(id = 3, name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
+                    dao.insert(Appliance(id = 4, name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
+                    dao.insert(Appliance(id = 5, name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
                 } else {
                     appliances.clear()
                     appliances.addAll(list)
@@ -141,6 +146,46 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.category.contains(searchQuery, ignoreCase = true)
         }
+
+    // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
+    private val weatherRepository = WeatherRepository()
+
+    var weather by mutableStateOf(WeatherUiState())
+        private set
+
+    fun fetchWeather() {
+        viewModelScope.launch {
+            weather = WeatherUiState(isLoading = true)
+            val city = suburb.ifBlank { "Melbourne" } + ",AU"
+            weather = weatherRepository.getWeather(city)
+            updateContextFromWeather()
+        }
+    }
+
+    private fun updateContextFromWeather() {
+        val outdoorTemp = weather.outdoorTempC
+        contextState = when {
+            outdoorTemp > 35 && currentEnergyKwh > 1.5 -> "Critical"
+            outdoorTemp > 28 && budgetProgress >= 0.8f  -> "Warning"
+            outdoorTemp < 10 && currentEnergyKwh > 2.0  -> "Warning"
+            budgetProgress >= 1.0f                       -> "Critical"
+            budgetProgress >= 0.8f                       -> "Warning"
+            else                                         -> "Normal"
+        }
+        contextTip = when (contextState) {
+            "Critical" -> "Critical: ${weather.energyImpact}. Shift appliances to off-peak immediately."
+            "Warning"  -> "Warning: ${weather.energyImpact}. Monitor usage closely."
+            else       -> "${weather.description.replaceFirstChar { it.uppercase() }} in ${weather.city}. ${weather.energyImpact}."
+        }
+    }
+
+    // ── Next Hour Forecast (TFLite placeholder) ───────────────────────────────
+    var nextHourForecastKwh by mutableStateOf(0.0)
+        private set
+
+    fun updateForecast(predictedKwh: Double) {
+        nextHourForecastKwh = predictedKwh
+    }
 
     // ── Household Messaging ───────────────────────────────────────────────────
     val messages = mutableStateListOf(
