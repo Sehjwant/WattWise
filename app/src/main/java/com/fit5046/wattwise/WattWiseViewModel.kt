@@ -9,14 +9,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
-data class Appliance(
-    val id: Int,
-    val name: String,
-    val category: String,
-    val wattage: Int,
-    val notes: String = ""
-)
-
 data class SensorReading(
     val applianceName: String,
     val energyKwh: Double,
@@ -80,11 +72,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             dao.getAll().collect { list ->
                 if (list.isEmpty()) {
-                    dao.insert(Appliance(id = 1, name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
-                    dao.insert(Appliance(id = 2, name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
-                    dao.insert(Appliance(id = 3, name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
-                    dao.insert(Appliance(id = 4, name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
-                    dao.insert(Appliance(id = 5, name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
+                    dao.insert(Appliance(name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
+                    dao.insert(Appliance(name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
+                    dao.insert(Appliance(name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
+                    dao.insert(Appliance(name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
+                    dao.insert(Appliance(name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
                 } else {
                     appliances.clear()
                     appliances.addAll(list)
@@ -254,20 +246,16 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     fun sendMessage(text: String) {
         val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
+        val cal = java.util.Calendar.getInstance()
+        val hour = cal.get(java.util.Calendar.HOUR)
+        val minute = cal.get(java.util.Calendar.MINUTE)
+        val amPm = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
         messages.add(
             HouseholdMessage(
                 id = newId,
                 senderName = fullName.ifBlank { "Alex Johnson" },
                 body = text,
-                timestamp = java.time.LocalTime.now()
-                    .let {
-                        String.format(
-                            "%d:%02d %s",
-                            if (it.hour % 12 == 0) 12 else it.hour % 12,
-                            it.minute,
-                            if (it.hour < 12) "AM" else "PM"
-                        )
-                    },
+                timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm),
                 type = MessageType.SENT
             )
         )
