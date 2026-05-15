@@ -11,6 +11,13 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+
+// WattWise brand colours
+val WattWiseGreen     = Color(0xFF2E7D32)
+val WattWiseGreenDark = Color(0xFF1B5E20)
+val WattWiseGreenLight= Color(0xFF81C784)
+val WattWiseGreenMid  = Color(0xFF388E3C)
+
 // WattWise brand colour scheme — used as the Material3 fallback
 // when dynamic colour is disabled (required so the green theme shows in screenshots)
 private val WattWiseLightColorScheme = lightColorScheme(
