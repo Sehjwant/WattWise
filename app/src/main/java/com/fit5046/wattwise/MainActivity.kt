@@ -1,47 +1,181 @@
 package com.fit5046.wattwise
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.fit5046.wattwise.ui.theme.WattWiseTheme
+import com.fit5046.wattwise.AddEditApplianceScreen
+import com.fit5046.wattwise.ApplianceManagerScreen
+import com.fit5046.wattwise.HistoryScreen
+import com.fit5046.wattwise.LiveMonitorScreen
+import com.fit5046.wattwise.LoginScreen
+import com.fit5046.wattwise.MessageType
+import com.fit5046.wattwise.MessagingScreen
+import com.fit5046.wattwise.NavigationDestination
+import com.fit5046.wattwise.WattWiseViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             WattWiseTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                WattWiseApp()
             }
         }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun WattWiseApp() {
+    val viewModel: WattWiseViewModel = viewModel()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    WattWiseTheme {
-        Greeting("Android")
+    if (!viewModel.isLoggedIn) {
+        LoginScreen(
+            onLoginSuccess = { viewModel.isLoggedIn = true },
+            onNavigateToRegister = {},
+            viewModel = viewModel
+        )
+        return
+    }
+
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val hideBottomBar = currentRoute in listOf("search", "add_appliance", "messaging") ||
+            currentRoute?.startsWith("edit_appliance") == true
+
+    Scaffold(
+        bottomBar = {
+            if (!hideBottomBar) {
+                NavigationBar(
+                    containerColor = Color(0xFF1B5E20),
+                    contentColor = Color.White
+                ) {
+                    NavigationDestination.entries.forEach { destination ->
+                        NavigationBarItem(
+                            icon = {
+                                if (destination == NavigationDestination.HOME) {
+                                    BadgedBox(badge = {
+                                        val alertCount = viewModel.messages.count {
+                                            it.type == MessageType.ALERT
+                                        }
+                                        if (alertCount > 0) {
+                                            Badge(containerColor = Color(0xFFE53935)) {
+                                                Text("$alertCount", color = Color.White)
+                                            }
+                                        }
+                                    }) {
+                                        Icon(destination.icon, contentDescription = destination.label)
+                                    }
+                                } else {
+                                    Icon(destination.icon, contentDescription = destination.label)
+                                }
+                            },
+                            label = { Text(destination.label) },
+                            selected = currentRoute == destination.route,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF69F0AE),
+                                selectedTextColor = Color(0xFF69F0AE),
+                                unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.7f),
+                                indicatorColor = Color(0xFF2E7D32)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = NavigationDestination.HOME.route,
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable(NavigationDestination.HOME.route) {
+                HomeScreen(
+                    viewModel = viewModel,
+                    onNavigateToMessaging = { navController.navigate("messaging") }
+                )
+            }
+            composable(NavigationDestination.MONITOR.route) {
+                LiveMonitorScreen(viewModel = viewModel)
+            }
+            composable(NavigationDestination.HISTORY.route) {
+                HistoryScreen(viewModel = viewModel)
+            }
+            composable(NavigationDestination.APPLIANCES.route) {
+                ApplianceManagerScreen(
+                    viewModel = viewModel,
+                    onNavigateToAdd = { navController.navigate("add_appliance") },
+                    onNavigateToEdit = { id -> navController.navigate("edit_appliance/$id") },
+                    onNavigateToSearch = { navController.navigate("search") }
+                )
+            }
+            composable(NavigationDestination.PROFILE.route) {
+                ProfileScreen(viewModel = viewModel)
+            }
+            composable("search") {
+                SearchScreen(viewModel = viewModel)
+            }
+            composable("add_appliance") {
+                AddEditApplianceScreen(
+                    viewModel = viewModel,
+                    applianceId = null,
+                    onDone = { navController.popBackStack() }
+                )
+            }
+            composable("edit_appliance/{id}") { backStackEntry ->
+                val id = backStackEntry.arguments?.getString("id")?.toIntOrNull()
+                AddEditApplianceScreen(
+                    viewModel = viewModel,
+                    applianceId = id,
+                    onDone = { navController.popBackStack() }
+                )
+            }
+            composable("messaging") {
+                MessagingScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
     }
 }
