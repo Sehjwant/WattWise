@@ -209,10 +209,10 @@ fun RegisterScreen(
 
                     Button(
                         onClick = {
-                            viewModel.fullName = fullName.ifEmpty { "New User" }
-                            viewModel.isOwner = selectedRole == "Owner"
-                            if (selectedRole == "Owner") viewModel.householdId = "HH-${System.currentTimeMillis() % 100000}"
-                            onRegisterSuccess()
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                val signInIntent = googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(8.dp),
