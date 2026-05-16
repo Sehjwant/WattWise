@@ -54,6 +54,33 @@ fun LoginScreen(
     var passwordError by remember { mutableStateOf<String?>(null) }
     var showRegister by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+
+    // ── Google Sign-In setup (following unit lab pattern) ──────────────────────
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.DEFAULT_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    // Activity result launcher for Google Sign-In intent
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                viewModel.firebaseAuthWithGoogle(account.idToken!!, onLoginSuccess)
+            } catch (e: ApiException) {
+                Log.w("GoogleSignIn", "Google sign in failed", e)
+                viewModel.authError = "Google sign-in failed: ${e.message}"
+            }
+        }
+    }
+
     if (showRegister) {
         RegisterScreen(
             onRegisterSuccess = {
