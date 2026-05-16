@@ -21,6 +21,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.app.Activity
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 
 // Password validation regex: min 8 chars, 1 uppercase, 1 digit, 1 special char
@@ -45,6 +53,33 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var showRegister by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    // ── Google Sign-In setup (following unit lab pattern) ──────────────────────
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.DEFAULT_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    // Activity result launcher for Google Sign-In intent
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                viewModel.firebaseAuthWithGoogle(account.idToken!!, onLoginSuccess)
+            } catch (e: ApiException) {
+                Log.w("GoogleSignIn", "Google sign in failed", e)
+                viewModel.authError = "Google sign-in failed: ${e.message}"
+            }
+        }
+    }
 
     if (showRegister) {
         RegisterScreen(
@@ -95,17 +130,37 @@ fun LoginScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
                     Text(text = "Sign In", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                     Spacer(modifier = Modifier.height(20.dp))
+
+                    // Firebase auth error message
+                    if (viewModel.authError != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Text(
+                                text = viewModel.authError!!,
+                                color = Color(0xFFB71C1C),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     // Email field
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
                             email = it
+                            viewModel.authError = null
                             emailError = if (it.isNotEmpty() && !it.contains("@"))
                                 "Please enter a valid email address" else null
                         },
+
                         label = { Text("Email Address") },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFF2E7D32)) },
                         isError = emailError != null,
@@ -156,13 +211,14 @@ fun LoginScreen(
                     Button(
                         onClick = {
                             val pErr = validatePassword(password)
-                            if (email.isNotEmpty() && pErr == null && password.isNotEmpty()) {
-                                viewModel.fullName = email.substringBefore("@")
-                                onLoginSuccess()
+                            if (email.isEmpty()) {
+                                emailError = "Email is required"
+                            } else if (password.isEmpty()) {
+                                passwordError = "Password is required"
+                            } else if (pErr != null) {
+                                passwordError = pErr
                             } else {
-                                if (email.isEmpty()) emailError = "Email is required"
-                                if (password.isEmpty()) passwordError = "Password is required"
-                                else passwordError = pErr
+                                viewModel.signInWithEmail(email, password, onLoginSuccess)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -175,8 +231,10 @@ fun LoginScreen(
                     // Google Sign-In Button (skeleton)
                     Button(
                         onClick = {
-                            viewModel.fullName = "Google User"
-                            onLoginSuccess()
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                val signInIntent = googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(8.dp),
