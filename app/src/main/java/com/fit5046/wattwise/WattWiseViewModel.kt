@@ -33,6 +33,10 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Room Database ─────────────────────────────────────────────────────────
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
 
+    // Firebase Authentication and Firestore instances
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+
     // ── Auth / User ───────────────────────────────────────────────────────────
     var isLoggedIn  by mutableStateOf(false)
     var isOwner     by mutableStateOf(true)
