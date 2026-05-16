@@ -191,13 +191,14 @@ fun LoginScreen(
                     Button(
                         onClick = {
                             val pErr = validatePassword(password)
-                            if (email.isNotEmpty() && pErr == null && password.isNotEmpty()) {
-                                viewModel.fullName = email.substringBefore("@")
-                                onLoginSuccess()
+                            if (email.isEmpty()) {
+                                emailError = "Email is required"
+                            } else if (password.isEmpty()) {
+                                passwordError = "Password is required"
+                            } else if (pErr != null) {
+                                passwordError = pErr
                             } else {
-                                if (email.isEmpty()) emailError = "Email is required"
-                                if (password.isEmpty()) passwordError = "Password is required"
-                                else passwordError = pErr
+                                viewModel.signInWithEmail(email, password, onLoginSuccess)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
