@@ -1,6 +1,7 @@
 package com.fit5046.wattwise
 
 import android.app.Application
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -325,65 +326,65 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Household Messaging ───────────────────────────────────────────────────
     val messages = mutableStateListOf(
         HouseholdMessage(
-            id = 1,
+            id         = 1,
             senderName = "WattWise — ContextEngine",
-            body = "⚡ Peak tariff active (0.22 AUD/kWh). Consider deferring the " +
+            body       = "⚡ Peak tariff active (0.22 AUD/kWh). Consider deferring the " +
                     "washing machine and dishwasher until after 10 PM off-peak.",
-            timestamp = "8:02 AM",
-            type = MessageType.ALERT
+            timestamp  = "8:02 AM",
+            type       = MessageType.ALERT
         ),
         HouseholdMessage(
-            id = 2,
+            id         = 2,
             senderName = "Sarah Chen",
-            body = "Got it — I'll run the dishwasher tonight. Is the oven still on?",
-            timestamp = "8:05 AM",
-            type = MessageType.RECEIVED
+            body       = "Got it — I'll run the dishwasher tonight. Is the oven still on?",
+            timestamp  = "8:05 AM",
+            type       = MessageType.RECEIVED
         ),
         HouseholdMessage(
-            id = 3,
+            id         = 3,
             senderName = "Alex Johnson",
-            body = "No I turned it off. The AC is the big one right now — room temp is 31°C.",
-            timestamp = "8:07 AM",
-            type = MessageType.SENT
+            body       = "No I turned it off. The AC is the big one right now — room temp is 31°C.",
+            timestamp  = "8:07 AM",
+            type       = MessageType.SENT
         ),
         HouseholdMessage(
-            id = 4,
+            id         = 4,
             senderName = "WattWise — WorkManager",
-            body = "⚠️ Budget alert: you have used 80% of your daily energy budget " +
+            body       = "⚠️ Budget alert: you have used 80% of your daily energy budget " +
                     "(16.0 / 20.0 kWh). Shift remaining appliances to off-peak to avoid overage.",
-            timestamp = "1:14 PM",
-            type = MessageType.ALERT
+            timestamp  = "1:14 PM",
+            type       = MessageType.ALERT
         ),
         HouseholdMessage(
-            id = 5,
+            id         = 5,
             senderName = "Mike Williams",
-            body = "I'm heading out — should be zero occupancy from 2–6 PM. " +
+            body       = "I'm heading out — should be zero occupancy from 2–6 PM. " +
                     "Turning off the AC now.",
-            timestamp = "1:18 PM",
-            type = MessageType.RECEIVED
+            timestamp  = "1:18 PM",
+            type       = MessageType.RECEIVED
         ),
         HouseholdMessage(
-            id = 6,
+            id         = 6,
             senderName = "Alex Johnson",
-            body = "Thanks Mike 👍 that'll help a lot with the budget.",
-            timestamp = "1:20 PM",
-            type = MessageType.SENT
+            body       = "Thanks Mike 👍 that'll help a lot with the budget.",
+            timestamp  = "1:20 PM",
+            type       = MessageType.SENT
         ),
         HouseholdMessage(
-            id = 7,
+            id         = 7,
             senderName = "WattWise — ContextEngine",
-            body = "🌿 Standby waste detected: 0.3 kWh consumed with zero occupancy. " +
+            body       = "🌿 Standby waste detected: 0.3 kWh consumed with zero occupancy. " +
                     "Check for appliances left in standby mode.",
-            timestamp = "3:45 PM",
-            type = MessageType.ALERT
+            timestamp  = "3:45 PM",
+            type       = MessageType.ALERT
         ),
         HouseholdMessage(
-            id = 8,
+            id         = 8,
             senderName = "Sarah Chen",
-            body = "Probably the TV on standby in the living room — I'll switch it off " +
+            body       = "Probably the TV on standby in the living room — I'll switch it off " +
                     "at the wall when I get home.",
-            timestamp = "3:52 PM",
-            type = MessageType.RECEIVED
+            timestamp  = "3:52 PM",
+            type       = MessageType.RECEIVED
         )
     )
 
@@ -395,12 +396,80 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         val amPm = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
         messages.add(
             HouseholdMessage(
-                id = newId,
+                id         = newId,
                 senderName = fullName.ifBlank { "Alex Johnson" },
-                body = text,
-                timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm),
-                type = MessageType.SENT
+                body       = text,
+                timestamp  = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm),
+                type       = MessageType.SENT
             )
         )
+    }
+
+    // ── SmartMeterSimulator + ContextEngine ───────────────────────────────────
+    private var simulator: SmartMeterSimulator? = null
+    var isSimulatorRunning by mutableStateOf(false)
+
+    fun startSimulator(context: Context) {
+        if (isSimulatorRunning) return
+        isSimulatorRunning = true
+        simulator = SmartMeterSimulator(context)
+
+        viewModelScope.launch {
+            simulator!!.stream().collect { row ->
+                // Update sensory data from CSV row
+                currentEnergyKwh  = row.energyKwh
+                currentTariff     = row.tariffPerKwh
+                currentTariffTier = row.tariffTier
+                roomTempC         = row.roomTempC
+                occupancyCount    = row.occupancyCount
+                isWeekend         = row.isWeekend
+                isHoliday         = row.isHoliday
+
+                // Accumulate daily energy
+                dailyCumulativeKwh += row.energyKwh * 0.01
+
+                // Update live readings feed
+                val newReading = SensorReading(
+                    applianceName  = row.applianceName,
+                    energyKwh      = row.energyKwh,
+                    tariffTier     = row.tariffTier,
+                    roomTempC      = row.roomTempC,
+                    occupancy      = row.occupancyCount,
+                    costPerSession = row.energyKwh * row.tariffPerKwh
+                )
+                if (liveReadings.size >= 20) liveReadings.removeAt(0)
+                liveReadings.add(0, newReading)
+
+                // Run ContextEngine to compute situation state
+                val result = ContextEngine.compute(
+                    row           = row,
+                    budgetGoal    = budgetGoal.toDoubleOrNull() ?: 20.0,
+                    cumulativeKwh = dailyCumulativeKwh
+                )
+                contextState = result.stateLabel
+                contextTip   = result.tip
+
+                // Add alert to messaging screen if triggered
+                result.alertMessage?.let { alert ->
+                    val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
+                    messages.add(
+                        HouseholdMessage(
+                            id         = newId,
+                            senderName = "WattWise — ContextEngine",
+                            body       = alert,
+                            timestamp  = java.time.LocalTime.now().let {
+                                String.format(
+                                    "%d:%02d %s",
+                                    if (it.hour % 12 == 0) 12 else it.hour % 12,
+                                    it.minute,
+                                    if (it.hour < 12) "AM" else "PM"
+                                )
+                            },
+                            type = MessageType.ALERT
+                        )
+                    )
+                }
+            }
+        }
     }
 }
