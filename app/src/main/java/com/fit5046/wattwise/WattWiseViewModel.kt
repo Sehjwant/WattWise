@@ -48,6 +48,38 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         suburb = ""
     }
 
+    // ── Email/Password Sign In ────────────────────────────────────────────────
+    fun signInWithEmail(email: String, password: String, onSuccess: () -> Unit) {
+        isAuthLoading = true
+        authError = null
+        viewModelScope.launch {
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
+                    loadUserProfile(user.uid)
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = when {
+                    e.message?.contains("no user record") == true ->
+                        "No account found with this email"
+                    e.message?.contains("password is invalid") == true ->
+                        "Incorrect password"
+                    e.message?.contains("badly formatted") == true ->
+                        "Please enter a valid email address"
+                    e.message?.contains("network") == true ->
+                        "Network error. Please check your connection"
+                    else -> e.message ?: "Sign in failed"
+                }
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
     // ── Profile / Settings ────────────────────────────────────────────────────
     var fullName             by mutableStateOf("")
     var suburb               by mutableStateOf("")
