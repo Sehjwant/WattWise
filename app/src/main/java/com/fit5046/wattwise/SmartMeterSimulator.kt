@@ -40,6 +40,22 @@ class SmartMeterSimulator(private val context: Context) {
         private const val MAX_ROWS = 200
     }
 
+    /**
+     * Streams CSV rows as a continuous Flow.
+     * Loops back to the start when all rows are consumed.
+     * Emits one row every 3 seconds to simulate real-time sensor output.
+     */
+    fun stream(): Flow<CsvSensorRow> = flow {
+        val rows = loadCsv()
+        if (rows.isEmpty()) return@flow
+        var index = 0
+        while (true) {
+            emit(rows[index % rows.size])
+            index++
+            delay(EMIT_INTERVAL_MS)
+        }
+    }
+
     // ── CSV Parser ────────────────────────────────────────────────────────────
     fun loadCsv(): List<CsvSensorRow> {
         val rows = mutableListOf<CsvSensorRow>()
