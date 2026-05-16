@@ -116,6 +116,36 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // ── Google Sign-In ────────────────────────────────────────────────────────
+    fun firebaseAuthWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        isAuthLoading = true
+        authError = null
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        viewModelScope.launch {
+            try {
+                auth.signInWithCredential(credential).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = user.displayName ?: "Google User"
+                    val doc = firestore.collection("users").document(user.uid).get().await()
+                    if (!doc.exists()) {
+                        isOwner = true
+                        householdId = "HH-${System.currentTimeMillis() % 100000}"
+                        saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
+                    } else {
+                        loadUserProfile(user.uid)
+                    }
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = e.message ?: "Google sign-in failed"
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
     // ── Profile / Settings ────────────────────────────────────────────────────
     var fullName             by mutableStateOf("")
     var suburb               by mutableStateOf("")
