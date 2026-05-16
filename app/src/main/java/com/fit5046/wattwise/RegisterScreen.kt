@@ -225,13 +225,23 @@ fun RegisterScreen(
                     Button(
                         onClick = {
                             val pErr = validatePassword(password)
-                            if (fullName.isNotEmpty() && email.isNotEmpty() && pErr == null && password == confirmPassword) {
-                                viewModel.fullName = fullName
-                                viewModel.isOwner = selectedRole == "Owner"
-                                onRegisterSuccess()
-                            } else {
+                            if (fullName.isEmpty()) {
+                                viewModel.authError = "Full name is required"
+                            } else if (email.isEmpty()) {
+                                viewModel.authError = "Email is required"
+                            } else if (pErr != null) {
                                 passwordError = pErr
-                                if (password != confirmPassword) confirmPasswordError = "Passwords do not match"
+                            } else if (password != confirmPassword) {
+                                confirmPasswordError = "Passwords do not match"
+                            } else {
+                                viewModel.registerWithEmail(
+                                    name = fullName,
+                                    email = email,
+                                    password = password,
+                                    role = selectedRole,
+                                    householdIdInput = householdIdInput,
+                                    onSuccess = onRegisterSuccess
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
