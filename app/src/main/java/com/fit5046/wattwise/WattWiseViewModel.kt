@@ -43,9 +43,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var householdId by mutableStateOf("HH-20261001")
 
     fun logout() {
+        auth.signOut()
         isLoggedIn = false
         fullName = ""
         suburb = ""
+        authError = null
     }
 
     // ── Email/Password Sign In ────────────────────────────────────────────────
@@ -142,6 +144,38 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 authError = e.message ?: "Google sign-in failed"
             } finally {
                 isAuthLoading = false
+            }
+        }
+    }
+
+    // ── Firestore: Save User Profile ──────────────────────────────────────────
+    private suspend fun saveUserProfile(uid: String, name: String, email: String, role: String, hhId: String) {
+        try {
+            val userProfile = hashMapOf(
+                "fullName" to name,
+                "email" to email,
+                "role" to role,
+                "householdId" to hhId,
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+            firestore.collection("users").document(uid).set(userProfile).await()
+        } catch (e: Exception) {
+            Log.e("WattWiseAuth", "Failed to save user profile", e)
+        }
+    }
+
+    // ── Firestore: Load User Profile ──────────────────────────────────────────
+    private fun loadUserProfile(uid: String) {
+        viewModelScope.launch {
+            try {
+                val doc = firestore.collection("users").document(uid).get().await()
+                if (doc.exists()) {
+                    fullName = doc.getString("fullName") ?: fullName
+                    isOwner = doc.getString("role") == "Owner"
+                    householdId = doc.getString("householdId") ?: householdId
+                }
+            } catch (e: Exception) {
+                Log.e("WattWiseAuth", "Failed to load user profile", e)
             }
         }
     }
