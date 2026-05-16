@@ -98,6 +98,17 @@ object ContextEngine {
             )
         }
 
+        // Rule 6b: Warning — high energy on weekend
+        if (row.isWeekend && row.energyKwh > 2.0) {
+            return ContextResult(
+                state        = SituationState.WARNING,
+                stateLabel   = "Warning",
+                tip          = "Weekend usage is high — consider spreading appliance loads " +
+                        "across the day to stay within budget.",
+                alertMessage = "📅 Weekend high usage: ${String.format("%.2f", row.energyKwh)} kWh detected."
+            )
+        }
+
         // Rule 7: Normal — weekend or holiday
         if (row.isWeekend || row.isHoliday) {
             return ContextResult(
