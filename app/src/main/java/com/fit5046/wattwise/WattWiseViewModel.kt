@@ -8,6 +8,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 data class SensorReading(
     val applianceName: String,
