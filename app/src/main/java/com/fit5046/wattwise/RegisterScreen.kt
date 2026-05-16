@@ -116,6 +116,23 @@ fun RegisterScreen(
                     Text(text = "Register", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Firebase auth error message
+                    if (viewModel.authError != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Text(
+                                text = viewModel.authError!!,
+                                color = Color(0xFFB71C1C),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     OutlinedTextField(
                         value = fullName,
                         onValueChange = { fullName = it },
