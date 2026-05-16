@@ -12,6 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 data class SensorReading(
     val applianceName: String,
@@ -41,6 +42,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var isLoggedIn  by mutableStateOf(false)
     var isOwner     by mutableStateOf(true)
     var householdId by mutableStateOf("HH-20261001")
+    var authError by mutableStateOf<String?>(null)
+    var isAuthLoading by mutableStateOf(false)
 
     fun logout() {
         auth.signOut()
