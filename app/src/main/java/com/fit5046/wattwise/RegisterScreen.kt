@@ -50,6 +50,32 @@ fun RegisterScreen(
     var selectedRole by remember { mutableStateOf("Owner") }
     var householdIdInput by remember { mutableStateOf("") }
 
+    val context = LocalContext.current
+
+    // ── Google Sign-In setup ──────────────────────────────────────────────────
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.DEFAULT_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                viewModel.firebaseAuthWithGoogle(account.idToken!!, onRegisterSuccess)
+            } catch (e: ApiException) {
+                Log.w("GoogleSignIn", "Google sign in failed", e)
+                viewModel.authError = "Google sign-in failed: ${e.message}"
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
