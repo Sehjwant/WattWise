@@ -24,6 +24,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.app.Activity
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun RegisterScreen(
@@ -41,6 +49,32 @@ fun RegisterScreen(
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var selectedRole by remember { mutableStateOf("Owner") }
     var householdIdInput by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    // ── Google Sign-In setup ──────────────────────────────────────────────────
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.DEFAULT_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                viewModel.firebaseAuthWithGoogle(account.idToken!!, onRegisterSuccess)
+            } catch (e: ApiException) {
+                Log.w("GoogleSignIn", "Google sign in failed", e)
+                viewModel.authError = "Google sign-in failed: ${e.message}"
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -81,6 +115,23 @@ fun RegisterScreen(
                 ) {
                     Text(text = "Register", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Firebase auth error message
+                    if (viewModel.authError != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Text(
+                                text = viewModel.authError!!,
+                                color = Color(0xFFB71C1C),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     OutlinedTextField(
                         value = fullName,
@@ -175,10 +226,10 @@ fun RegisterScreen(
 
                     Button(
                         onClick = {
-                            viewModel.fullName = fullName.ifEmpty { "New User" }
-                            viewModel.isOwner = selectedRole == "Owner"
-                            if (selectedRole == "Owner") viewModel.householdId = "HH-${System.currentTimeMillis() % 100000}"
-                            onRegisterSuccess()
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                val signInIntent = googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(8.dp),
@@ -191,13 +242,23 @@ fun RegisterScreen(
                     Button(
                         onClick = {
                             val pErr = validatePassword(password)
-                            if (fullName.isNotEmpty() && email.isNotEmpty() && pErr == null && password == confirmPassword) {
-                                viewModel.fullName = fullName
-                                viewModel.isOwner = selectedRole == "Owner"
-                                onRegisterSuccess()
-                            } else {
+                            if (fullName.isEmpty()) {
+                                viewModel.authError = "Full name is required"
+                            } else if (email.isEmpty()) {
+                                viewModel.authError = "Email is required"
+                            } else if (pErr != null) {
                                 passwordError = pErr
-                                if (password != confirmPassword) confirmPasswordError = "Passwords do not match"
+                            } else if (password != confirmPassword) {
+                                confirmPasswordError = "Passwords do not match"
+                            } else {
+                                viewModel.registerWithEmail(
+                                    name = fullName,
+                                    email = email,
+                                    password = password,
+                                    role = selectedRole,
+                                    householdIdInput = householdIdInput,
+                                    onSuccess = onRegisterSuccess
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),

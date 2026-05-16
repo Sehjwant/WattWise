@@ -8,6 +8,11 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 data class SensorReading(
     val applianceName: String,
@@ -29,15 +34,153 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Room Database ─────────────────────────────────────────────────────────
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
 
+    // Firebase Authentication and Firestore instances
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+
     // ── Auth / User ───────────────────────────────────────────────────────────
     var isLoggedIn  by mutableStateOf(false)
     var isOwner     by mutableStateOf(true)
     var householdId by mutableStateOf("HH-20261001")
+    var authError by mutableStateOf<String?>(null)
+    var isAuthLoading by mutableStateOf(false)
 
     fun logout() {
+        auth.signOut()
         isLoggedIn = false
         fullName = ""
         suburb = ""
+        authError = null
+    }
+
+    // ── Email/Password Sign In ────────────────────────────────────────────────
+    fun signInWithEmail(email: String, password: String, onSuccess: () -> Unit) {
+        isAuthLoading = true
+        authError = null
+        viewModelScope.launch {
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
+                    loadUserProfile(user.uid)
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = when {
+                    e.message?.contains("no user record") == true ->
+                        "No account found with this email"
+                    e.message?.contains("password is invalid") == true ->
+                        "Incorrect password"
+                    e.message?.contains("badly formatted") == true ->
+                        "Please enter a valid email address"
+                    e.message?.contains("network") == true ->
+                        "Network error. Please check your connection"
+                    else -> e.message ?: "Sign in failed"
+                }
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
+    // ── Email/Password Registration ───────────────────────────────────────────
+    fun registerWithEmail(
+        name: String, email: String, password: String,
+        role: String, householdIdInput: String, onSuccess: () -> Unit
+    ) {
+        isAuthLoading = true
+        authError = null
+        viewModelScope.launch {
+            try {
+                auth.createUserWithEmailAndPassword(email, password).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = name
+                    isOwner = role == "Owner"
+                    householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
+                    else householdIdInput.ifBlank { "HH-00000" }
+                    saveUserProfile(user.uid, name, email, role, householdId)
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = when {
+                    e.message?.contains("email address is already in use") == true ->
+                        "An account with this email already exists"
+                    e.message?.contains("weak password") == true ->
+                        "Password is too weak"
+                    e.message?.contains("badly formatted") == true ->
+                        "Please enter a valid email address"
+                    else -> e.message ?: "Registration failed"
+                }
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
+    // ── Google Sign-In ────────────────────────────────────────────────────────
+    fun firebaseAuthWithGoogle(idToken: String, onSuccess: () -> Unit) {
+        isAuthLoading = true
+        authError = null
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        viewModelScope.launch {
+            try {
+                auth.signInWithCredential(credential).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = user.displayName ?: "Google User"
+                    val doc = firestore.collection("users").document(user.uid).get().await()
+                    if (!doc.exists()) {
+                        isOwner = true
+                        householdId = "HH-${System.currentTimeMillis() % 100000}"
+                        saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
+                    } else {
+                        loadUserProfile(user.uid)
+                    }
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = e.message ?: "Google sign-in failed"
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
+    // ── Firestore: Save User Profile ──────────────────────────────────────────
+    private suspend fun saveUserProfile(uid: String, name: String, email: String, role: String, hhId: String) {
+        try {
+            val userProfile = hashMapOf(
+                "fullName" to name,
+                "email" to email,
+                "role" to role,
+                "householdId" to hhId,
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+            firestore.collection("users").document(uid).set(userProfile).await()
+        } catch (e: Exception) {
+            Log.e("WattWiseAuth", "Failed to save user profile", e)
+        }
+    }
+
+    // ── Firestore: Load User Profile ──────────────────────────────────────────
+    private fun loadUserProfile(uid: String) {
+        viewModelScope.launch {
+            try {
+                val doc = firestore.collection("users").document(uid).get().await()
+                if (doc.exists()) {
+                    fullName = doc.getString("fullName") ?: fullName
+                    isOwner = doc.getString("role") == "Owner"
+                    householdId = doc.getString("householdId") ?: householdId
+                }
+            } catch (e: Exception) {
+                Log.e("WattWiseAuth", "Failed to load user profile", e)
+            }
+        }
     }
 
     // ── Profile / Settings ────────────────────────────────────────────────────
