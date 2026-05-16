@@ -211,8 +211,10 @@ fun LoginScreen(
                     // Google Sign-In Button (skeleton)
                     Button(
                         onClick = {
-                            viewModel.fullName = "Google User"
-                            onLoginSuccess()
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                val signInIntent = googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(8.dp),
