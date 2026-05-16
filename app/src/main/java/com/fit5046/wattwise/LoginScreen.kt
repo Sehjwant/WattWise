@@ -130,17 +130,37 @@ fun LoginScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+
                     Text(text = "Sign In", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                     Spacer(modifier = Modifier.height(20.dp))
+
+                    // Firebase auth error message
+                    if (viewModel.authError != null) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Text(
+                                text = viewModel.authError!!,
+                                color = Color(0xFFB71C1C),
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     // Email field
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
                             email = it
+                            viewModel.authError = null
                             emailError = if (it.isNotEmpty() && !it.contains("@"))
                                 "Please enter a valid email address" else null
                         },
+
                         label = { Text("Email Address") },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFF2E7D32)) },
                         isError = emailError != null,
