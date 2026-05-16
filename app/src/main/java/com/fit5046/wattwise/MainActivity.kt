@@ -19,9 +19,11 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -29,15 +31,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.fit5046.wattwise.ui.theme.WattWiseTheme
-import com.fit5046.wattwise.AddEditApplianceScreen
-import com.fit5046.wattwise.ApplianceManagerScreen
-import com.fit5046.wattwise.HistoryScreen
-import com.fit5046.wattwise.LiveMonitorScreen
-import com.fit5046.wattwise.LoginScreen
-import com.fit5046.wattwise.MessageType
-import com.fit5046.wattwise.MessagingScreen
-import com.fit5046.wattwise.NavigationDestination
-import com.fit5046.wattwise.WattWiseViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 class MainActivity : ComponentActivity() {
@@ -72,6 +65,12 @@ fun WattWiseApp() {
 
     val hideBottomBar = currentRoute in listOf("search", "add_appliance", "messaging") ||
             currentRoute?.startsWith("edit_appliance") == true
+
+    // Start SmartMeterSimulator when user is logged in
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.startSimulator(context)
+    }
 
     Scaffold(
         bottomBar = {
