@@ -2,11 +2,12 @@ package com.fit5046.wattwise
 
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.fit5046.wattwise.BuildConfig
 
 class WeatherRepository {
 
     companion object {
-        const val API_KEY = "fbbae94cdffd04293954e794252a52a0"  // replace with your key
+        const val API_KEY = BuildConfig.WEATHER_API_KEY  // replace with your key
         const val BASE_URL = "https://api.openweathermap.org/"
     }
 
