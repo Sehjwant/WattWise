@@ -80,6 +80,42 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // ── Email/Password Registration ───────────────────────────────────────────
+    fun registerWithEmail(
+        name: String, email: String, password: String,
+        role: String, householdIdInput: String, onSuccess: () -> Unit
+    ) {
+        isAuthLoading = true
+        authError = null
+        viewModelScope.launch {
+            try {
+                auth.createUserWithEmailAndPassword(email, password).await()
+                val user = auth.currentUser
+                if (user != null) {
+                    fullName = name
+                    isOwner = role == "Owner"
+                    householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
+                    else householdIdInput.ifBlank { "HH-00000" }
+                    saveUserProfile(user.uid, name, email, role, householdId)
+                    isLoggedIn = true
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                authError = when {
+                    e.message?.contains("email address is already in use") == true ->
+                        "An account with this email already exists"
+                    e.message?.contains("weak password") == true ->
+                        "Password is too weak"
+                    e.message?.contains("badly formatted") == true ->
+                        "Please enter a valid email address"
+                    else -> e.message ?: "Registration failed"
+                }
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
     // ── Profile / Settings ────────────────────────────────────────────────────
     var fullName             by mutableStateOf("")
     var suburb               by mutableStateOf("")
