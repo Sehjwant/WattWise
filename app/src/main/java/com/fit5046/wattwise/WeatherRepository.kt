@@ -7,7 +7,7 @@ import com.fit5046.wattwise.BuildConfig
 class WeatherRepository {
 
     companion object {
-        const val API_KEY = BuildConfig.WEATHER_API_KEY  // replace with your key
+        val API_KEY = BuildConfig.WEATHER_API_KEY  // replace with your key
         const val BASE_URL = "https://api.openweathermap.org/"
     }
 
