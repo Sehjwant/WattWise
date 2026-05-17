@@ -299,3 +299,78 @@ private fun BreakdownTab(viewModel: WattWiseViewModel) {
         tint = Color(0xFF1565C0)
     )
 }
+
+
+// ── Tab 3 — Carbon Emissions connected to Room ────────────────────────────────
+@Composable
+private fun CarbonTab(viewModel: WattWiseViewModel) {
+    val dailyTotals = viewModel.dailyTotals
+    val co2Data     = dailyTotals.map { it.date.takeLast(5) to (it.totalKwh * 0.79).toFloat() }
+    val totalCo2    = co2Data.sumOf { it.second.toDouble() }
+    val avgCo2      = if (co2Data.isNotEmpty()) totalCo2 / co2Data.size else 0.0
+
+    SummaryStatsRow(
+        StatItem("Period CO2", String.format("%.1f kg", totalCo2), Color(0xFF2E7D32)),
+        StatItem("Daily Avg", String.format("%.1f kg", avgCo2), Color(0xFF388E3C)),
+        StatItem("Grid Factor", "0.79 kg/kWh", Color(0xFF455A64))
+    )
+
+    ChartCard(
+        title = "Daily CO2 Emissions (kg)",
+        subtitle = "Australia grid emission factor: 0.79 kg CO2/kWh"
+    ) {
+        if (co2Data.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp),
+                contentAlignment = Alignment.Center) {
+                Text("No data for selected range", color = Color.Gray)
+            }
+        } else {
+            val maxCo2 = co2Data.maxOf { it.second }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                co2Data.forEach { (day, co2) ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Text(String.format("%.1f", co2), fontSize = 9.sp,
+                            color = Color(0xFF6A1B9A))
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(28.dp)
+                                .height(((co2 / maxCo2) * 110).dp.coerceAtLeast(4.dp))
+                                .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
+                                .background(when {
+                                    co2 > 15f -> Color(0xFF6A1B9A)
+                                    co2 > 12f -> Color(0xFFAB47BC)
+                                    else      -> Color(0xFFCE93D8)
+                                })
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(day, fontSize = 8.sp, color = Color(0xFF424242))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LegendItem(Color(0xFFCE93D8), "< 12 kg")
+                LegendItem(Color(0xFFAB47BC), "12-15 kg")
+                LegendItem(Color(0xFF6A1B9A), "> 15 kg")
+            }
+        }
+    }
+
+    InsightCard(
+        icon = Icons.Default.Eco,
+        title = "Your Carbon Footprint",
+        body = "This period your household emitted ${String.format("%.1f", totalCo2)} kg of CO2 " +
+                "equivalent to driving a petrol car roughly ${String.format("%.0f", totalCo2 * 4.2)} km. " +
+                "Shifting peak-hour appliance use to off-peak can reduce this by 10-15%.",
+        tint = Color(0xFF2E7D32)
+    )
+}
+
