@@ -14,6 +14,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import android.util.Log
+import com.google.firebase.firestore.Query
 
 data class SensorReading(
     val applianceName: String,
