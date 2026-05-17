@@ -4,6 +4,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.fit5046.wattwise.BuildConfig
 
+
 class WeatherRepository {
 
     companion object {
