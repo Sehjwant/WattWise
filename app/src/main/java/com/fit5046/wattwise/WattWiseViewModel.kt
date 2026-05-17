@@ -63,9 +63,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 val user = auth.currentUser
                 if (user != null) {
                     fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
-                    loadUserProfile(user.uid)
+                    loadUserProfile(user.uid) // listenToMessages called inside after householdId loads
                     isLoggedIn = true
-                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -100,7 +99,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
                     isLoggedIn = true
-                    listenToMessages()
+                    listenToMessages() // householdId already set above
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -132,11 +131,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                         isOwner     = true
                         householdId = "HH-${System.currentTimeMillis() % 100000}"
                         saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
+                        listenToMessages() // new user, householdId set directly above
                     } else {
-                        loadUserProfile(user.uid)
+                        loadUserProfile(user.uid) // listenToMessages called inside after householdId loads
                     }
                     isLoggedIn = true
-                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -163,6 +162,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Firestore: Load User Profile ──────────────────────────────────────────
+    // listenToMessages() is called here after householdId is confirmed loaded
     private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             try {
@@ -171,6 +171,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName    = doc.getString("fullName") ?: fullName
                     isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
+                    listenToMessages() // called after householdId is set from Firestore
                 }
             } catch (e: Exception) {
                 Log.e("WattWiseAuth", "Failed to load user profile", e)
@@ -322,14 +323,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     messages.clear()
                     var idCounter = 1
                     for (doc in snapshot.documents) {
-                        val senderName = doc.getString("senderName") ?: ""
-                        val body       = doc.getString("body") ?: ""
-                        val timestamp  = doc.getString("timestamp") ?: ""
-                        val typeStr    = doc.getString("type") ?: "SENT"
+                        val senderName   = doc.getString("senderName") ?: ""
+                        val body         = doc.getString("body") ?: ""
+                        val timestamp    = doc.getString("timestamp") ?: ""
+                        val typeStr      = doc.getString("type") ?: "SENT"
                         val resolvedType = when {
-                            typeStr == "ALERT"       -> MessageType.ALERT
-                            senderName == fullName   -> MessageType.SENT
-                            else                     -> MessageType.RECEIVED
+                            typeStr == "ALERT"     -> MessageType.ALERT
+                            senderName == fullName -> MessageType.SENT
+                            else                   -> MessageType.RECEIVED
                         }
                         messages.add(
                             HouseholdMessage(
@@ -428,7 +429,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 contextState = result.stateLabel
                 contextTip   = result.tip
 
-                // Send alert to Firestore so all household members see it
                 result.alertMessage?.let { alert -> sendAlertMessage(alert) }
             }
         }
