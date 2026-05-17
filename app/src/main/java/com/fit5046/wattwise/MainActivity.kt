@@ -1,18 +1,18 @@
 package com.fit5046.wattwise
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -34,9 +35,24 @@ import com.fit5046.wattwise.ui.theme.WattWiseTheme
 
 @RequiresApi(Build.VERSION_CODES.O)
 class MainActivity : ComponentActivity() {
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* handled silently */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         setContent {
             WattWiseTheme {
                 WattWiseApp()
@@ -66,10 +82,18 @@ fun WattWiseApp() {
     val hideBottomBar = currentRoute in listOf("search", "add_appliance", "messaging") ||
             currentRoute?.startsWith("edit_appliance") == true
 
-    // Start SmartMeterSimulator when user is logged in
     val context = LocalContext.current
+
     LaunchedEffect(Unit) {
         viewModel.startSimulator(context)
+    }
+
+    LaunchedEffect(viewModel.dailyCumulativeKwh, viewModel.budgetGoal) {
+        WorkManagerScheduler.schedule(
+            context       = context,
+            cumulativeKwh = viewModel.dailyCumulativeKwh,
+            budgetGoal    = viewModel.budgetGoal.toDoubleOrNull() ?: 20.0
+        )
     }
 
     Scaffold(
@@ -77,7 +101,7 @@ fun WattWiseApp() {
             if (!hideBottomBar) {
                 NavigationBar(
                     containerColor = Color(0xFF1B5E20),
-                    contentColor = Color.White
+                    contentColor   = Color.White
                 ) {
                     NavigationDestination.entries.forEach { destination ->
                         NavigationBarItem(
@@ -99,23 +123,23 @@ fun WattWiseApp() {
                                     Icon(destination.icon, contentDescription = destination.label)
                                 }
                             },
-                            label = { Text(destination.label) },
+                            label    = { Text(destination.label) },
                             selected = currentRoute == destination.route,
-                            onClick = {
+                            onClick  = {
                                 navController.navigate(destination.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
                                     launchSingleTop = true
-                                    restoreState = true
+                                    restoreState    = true
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF69F0AE),
-                                selectedTextColor = Color(0xFF69F0AE),
+                                selectedIconColor   = Color(0xFF69F0AE),
+                                selectedTextColor   = Color(0xFF69F0AE),
                                 unselectedIconColor = Color.White.copy(alpha = 0.7f),
                                 unselectedTextColor = Color.White.copy(alpha = 0.7f),
-                                indicatorColor = Color(0xFF2E7D32)
+                                indicatorColor      = Color(0xFF2E7D32)
                             )
                         )
                     }
@@ -124,13 +148,13 @@ fun WattWiseApp() {
         }
     ) { paddingValues ->
         NavHost(
-            navController = navController,
+            navController    = navController,
             startDestination = NavigationDestination.HOME.route,
-            modifier = Modifier.padding(paddingValues)
+            modifier         = Modifier.padding(paddingValues)
         ) {
             composable(NavigationDestination.HOME.route) {
                 HomeScreen(
-                    viewModel = viewModel,
+                    viewModel             = viewModel,
                     onNavigateToMessaging = { navController.navigate("messaging") }
                 )
             }
@@ -142,9 +166,9 @@ fun WattWiseApp() {
             }
             composable(NavigationDestination.APPLIANCES.route) {
                 ApplianceManagerScreen(
-                    viewModel = viewModel,
-                    onNavigateToAdd = { navController.navigate("add_appliance") },
-                    onNavigateToEdit = { id -> navController.navigate("edit_appliance/$id") },
+                    viewModel          = viewModel,
+                    onNavigateToAdd    = { navController.navigate("add_appliance") },
+                    onNavigateToEdit   = { id -> navController.navigate("edit_appliance/$id") },
                     onNavigateToSearch = { navController.navigate("search") }
                 )
             }
@@ -156,23 +180,23 @@ fun WattWiseApp() {
             }
             composable("add_appliance") {
                 AddEditApplianceScreen(
-                    viewModel = viewModel,
+                    viewModel   = viewModel,
                     applianceId = null,
-                    onDone = { navController.popBackStack() }
+                    onDone      = { navController.popBackStack() }
                 )
             }
             composable("edit_appliance/{id}") { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("id")?.toIntOrNull()
                 AddEditApplianceScreen(
-                    viewModel = viewModel,
+                    viewModel   = viewModel,
                     applianceId = id,
-                    onDone = { navController.popBackStack() }
+                    onDone      = { navController.popBackStack() }
                 )
             }
             composable("messaging") {
                 MessagingScreen(
                     viewModel = viewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack    = { navController.popBackStack() }
                 )
             }
         }
