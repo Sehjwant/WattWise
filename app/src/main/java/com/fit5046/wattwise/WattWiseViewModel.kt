@@ -51,6 +51,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         suburb     = ""
         authError  = null
         messages.clear()
+        householdMembers.clear()
     }
 
     // ── Email/Password Sign In ────────────────────────────────────────────────
@@ -98,15 +99,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
-                    // Update household member list with registered user
-                    if (householdMembers.isNotEmpty()) {
-                        householdMembers[0] = HouseholdMember(
-                            name    = fullName,
-                            email   = email,
-                            isOwner = isOwner
-                        )
-                    }
                     isLoggedIn = true
+                    loadHouseholdMembers()
                     listenToMessages()
                     onSuccess()
                 }
@@ -139,13 +133,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                         isOwner     = true
                         householdId = "HH-${System.currentTimeMillis() % 100000}"
                         saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
-                        if (householdMembers.isNotEmpty()) {
-                            householdMembers[0] = HouseholdMember(
-                                name    = fullName,
-                                email   = user.email ?: "",
-                                isOwner = true
-                            )
-                        }
+                        loadHouseholdMembers()
                         listenToMessages()
                     } else {
                         loadUserProfile(user.uid)
@@ -177,8 +165,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Firestore: Load User Profile ──────────────────────────────────────────
-    // listenToMessages() is called here after householdId is confirmed loaded
-    // householdMembers[0] is updated with the real user name and email from Firestore
+    // loadHouseholdMembers() and listenToMessages() are called after
+    // householdId is confirmed loaded from Firestore
     private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             try {
@@ -187,22 +175,42 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName    = doc.getString("fullName") ?: fullName
                     isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
-
-                    // Replace hardcoded owner entry with real user from Firestore
-                    if (householdMembers.isNotEmpty()) {
-                        householdMembers[0] = HouseholdMember(
-                            name    = fullName,
-                            email   = doc.getString("email") ?: "",
-                            isOwner = isOwner
-                        )
-                    }
-
+                    loadHouseholdMembers()
                     listenToMessages()
                 }
             } catch (e: Exception) {
                 Log.e("WattWiseAuth", "Failed to load user profile", e)
             }
         }
+    }
+
+    // ── Firestore: Load Household Members ─────────────────────────────────────
+    // Queries users collection for all members sharing the same householdId.
+    // Real-time listener updates the list when members join or leave.
+    fun loadHouseholdMembers() {
+        firestore.collection("users")
+            .whereEqualTo("householdId", householdId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("WattWiseMembers", "Failed to load members", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    householdMembers.clear()
+                    for (doc in snapshot.documents) {
+                        val name  = doc.getString("fullName") ?: ""
+                        val email = doc.getString("email") ?: ""
+                        val role  = doc.getString("role") ?: "Member"
+                        householdMembers.add(
+                            HouseholdMember(
+                                name    = name,
+                                email   = email,
+                                isOwner = role == "Owner"
+                            )
+                        )
+                    }
+                }
+            }
     }
 
     // ── Profile / Settings ────────────────────────────────────────────────────
@@ -216,17 +224,28 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var householdSharing     by mutableStateOf(false)
 
     // ── Household Members ─────────────────────────────────────────────────────
-    val householdMembers = mutableStateListOf(
-        HouseholdMember("Alex Johnson",  "alex@gmail.com",  isOwner = true),
-        HouseholdMember("Sarah Chen",    "sarah@gmail.com"),
-        HouseholdMember("Mike Williams", "mike@gmail.com")
-    )
+    // Populated from Firestore via loadHouseholdMembers()
+    val householdMembers = mutableStateListOf<HouseholdMember>()
 
     fun removeMember(index: Int) {
-        if (index > 0 && index < householdMembers.size) {
-            householdMembers.removeAt(index)
-            val current = householdSize.toIntOrNull() ?: 1
-            if (current > 1) householdSize = (current - 1).toString()
+        if (index >= 0 && index < householdMembers.size) {
+            val member = householdMembers[index]
+            if (!member.isOwner) {
+                // Remove from Firestore by matching email
+                viewModelScope.launch {
+                    try {
+                        val query = firestore.collection("users")
+                            .whereEqualTo("email", member.email)
+                            .whereEqualTo("householdId", householdId)
+                            .get().await()
+                        for (doc in query.documents) {
+                            doc.reference.delete().await()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("WattWiseMembers", "Failed to remove member", e)
+                    }
+                }
+            }
         }
     }
 
