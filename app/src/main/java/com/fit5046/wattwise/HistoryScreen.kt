@@ -666,6 +666,12 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                             focusedLabelColor = Color(0xFF69F0AE)
                         )
                     )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Button(
                         onClick = {
                             if (viewModel.selectedFromDate.isNotEmpty() &&
@@ -676,12 +682,25 @@ fun HistoryScreen(viewModel: WattWiseViewModel) {
                                 )
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF69F0AE)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF69F0AE)),
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.align(Alignment.CenterVertically)
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text("Apply", color = Color(0xFF1B5E20),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = {
+                            fromDate = ""
+                            toDate = ""
+                            viewModel.loadHistoryForLastSevenDays()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reset", color = Color.White,
                             fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
