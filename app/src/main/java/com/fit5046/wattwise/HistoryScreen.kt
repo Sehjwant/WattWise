@@ -374,3 +374,106 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
     )
 }
 
+// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
+@Composable
+private fun TrendsTab(viewModel: WattWiseViewModel) {
+    val dailyTotals = viewModel.dailyTotals
+
+    val weeklyTotals = dailyTotals
+        .chunked(7)
+        .mapIndexed { index, week ->
+            "W${index + 1}" to week.sumOf { it.totalKwh }.toFloat()
+        }
+
+    val monthTotal = weeklyTotals.sumOf { it.second.toDouble() }
+    val bestWeek   = weeklyTotals.minByOrNull { it.second }
+    val worstWeek  = weeklyTotals.maxByOrNull { it.second }
+
+    SummaryStatsRow(
+        StatItem("Period Total", String.format("%.0f kWh", monthTotal), Color(0xFF0D47A1)),
+        StatItem("Best Week", bestWeek?.let {
+            "${it.first} ${String.format("%.0f", it.second)}"
+        } ?: "N/A", Color(0xFF2E7D32)),
+        StatItem("Worst Week", worstWeek?.let {
+            "${it.first} ${String.format("%.0f", it.second)}"
+        } ?: "N/A", Color(0xFFB71C1C))
+    )
+
+    ChartCard(
+        title = "Weekly Usage Trend (kWh)",
+        subtitle = "Aggregated from daily Room data"
+    ) {
+        if (weeklyTotals.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp),
+                contentAlignment = Alignment.Center) {
+                Text("No data for selected range", color = Color.Gray)
+            }
+        } else {
+            val maxVal = weeklyTotals.maxOf { it.second }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                weeklyTotals.forEach { (week, value) ->
+                    val isBest  = week == bestWeek?.first
+                    val isWorst = week == worstWeek?.first
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        Text(
+                            String.format("%.0f", value),
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = when {
+                                isWorst -> Color(0xFFB71C1C)
+                                isBest  -> Color(0xFF2E7D32)
+                                else    -> Color.Gray
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(52.dp)
+                                .height(((value / maxVal) * 100).dp.coerceAtLeast(4.dp))
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                .background(when {
+                                    isWorst -> Color(0xFFEF9A9A)
+                                    isBest  -> Color(0xFFA5D6A7)
+                                    else    -> Color(0xFF64B5F6)
+                                })
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(week, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                            color = Color(0xFF424242))
+                        if (isBest)  Text("best", fontSize = 9.sp, color = Color(0xFF2E7D32))
+                        if (isWorst) Text("high", fontSize = 9.sp, color = Color(0xFFB71C1C))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = Color(0xFFEEEEEE))
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Period total:", fontSize = 13.sp, color = Color.Gray)
+                Text(
+                    String.format("%.0f kWh  AUD %.0f", monthTotal, monthTotal * 0.18),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0D47A1)
+                )
+            }
+        }
+    }
+
+    InsightCard(
+        icon = Icons.Default.TrendingUp,
+        title = "Trend Analysis",
+        body = worstWeek?.let {
+            "Your usage peaked in ${it.first} (${String.format("%.0f", it.second)} kWh). " +
+                    "Setting a WorkManager alert at 80% of your weekly budget can help prevent overage."
+        } ?: "Select a date range to see trend analysis.",
+        tint = Color(0xFF0D47A1)
+    )
+}
+
