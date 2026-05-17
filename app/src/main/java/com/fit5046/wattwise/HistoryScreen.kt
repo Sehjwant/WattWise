@@ -477,3 +477,211 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
     )
 }
 
+// ── Main HistoryScreen ────────────────────────────────────────────────────────
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(viewModel: WattWiseViewModel) {
+    val formatter   = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    val dbFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    var fromDate    by remember { mutableStateOf("") }
+    var toDate      by remember { mutableStateOf("") }
+    var showFromPicker by remember { mutableStateOf(false) }
+    var showToPicker   by remember { mutableStateOf(false) }
+    var selectedTab    by remember { mutableStateOf(HistoryTab.DAILY) }
+
+    val fromPickerState = rememberDatePickerState(Instant.now().toEpochMilli())
+    val toPickerState   = rememberDatePickerState(Instant.now().toEpochMilli())
+
+    if (showFromPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showFromPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFromPicker = false
+                    fromPickerState.selectedDateMillis?.let {
+                        fromDate = formatter.format(Date(it))
+                        viewModel.selectedFromDate = dbFormatter.format(Date(it))
+                    }
+                }) { Text("OK", color = Color(0xFF2E7D32)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFromPicker = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        ) { DatePicker(state = fromPickerState) }
+    }
+
+    if (showToPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showToPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showToPicker = false
+                    toPickerState.selectedDateMillis?.let {
+                        toDate = formatter.format(Date(it))
+                        viewModel.selectedToDate = dbFormatter.format(Date(it))
+                    }
+                }) { Text("OK", color = Color(0xFF2E7D32)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showToPicker = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        ) { DatePicker(state = toPickerState) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DateRange, contentDescription = null,
+                            tint = Color(0xFF69F0AE), modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("History & Charts", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1B5E20))
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // ── Date Range Filter ─────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1B5E20))
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = fromDate.ifEmpty { "From" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("From", fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.7f)) },
+                        modifier = Modifier.weight(1f).clickable { showFromPicker = true },
+                        trailingIcon = {
+                            Icon(Icons.Default.DateRange, null,
+                                modifier = Modifier.clickable { showFromPicker = true }.size(18.dp),
+                                tint = Color(0xFF69F0AE))
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedTextColor = Color.White,
+                            focusedTextColor = Color.White,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
+                            focusedBorderColor = Color(0xFF69F0AE),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                            focusedLabelColor = Color(0xFF69F0AE)
+                        )
+                    )
+                    OutlinedTextField(
+                        value = toDate.ifEmpty { "To" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("To", fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.7f)) },
+                        modifier = Modifier.weight(1f).clickable { showToPicker = true },
+                        trailingIcon = {
+                            Icon(Icons.Default.DateRange, null,
+                                modifier = Modifier.clickable { showToPicker = true }.size(18.dp),
+                                tint = Color(0xFF69F0AE))
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedTextColor = Color.White,
+                            focusedTextColor = Color.White,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
+                            focusedBorderColor = Color(0xFF69F0AE),
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
+                            focusedLabelColor = Color(0xFF69F0AE)
+                        )
+                    )
+                    Button(
+                        onClick = {
+                            if (viewModel.selectedFromDate.isNotEmpty() &&
+                                viewModel.selectedToDate.isNotEmpty()) {
+                                viewModel.loadHistoryForDateRange(
+                                    viewModel.selectedFromDate,
+                                    viewModel.selectedToDate
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF69F0AE)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    ) {
+                        Text("Apply", color = Color(0xFF1B5E20),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+
+            // ── Tab Row ───────────────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF1B5E20))
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HistoryTab.entries.forEach { tab ->
+                    val isSelected = selectedTab == tab
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                if (isSelected) Color(0xFF69F0AE)
+                                else Color.White.copy(alpha = 0.15f)
+                            )
+                            .clickable { selectedTab = tab }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            tab.label,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color(0xFF1B5E20) else Color.White
+                        )
+                    }
+                }
+            }
+
+            // ── Animated tab content ──────────────────────────────────────────
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "history_tab_transition",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF5F7F5))
+            ) { tab ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    when (tab) {
+                        HistoryTab.DAILY     -> DailyUsageTab(viewModel)
+                        HistoryTab.BREAKDOWN -> BreakdownTab(viewModel)
+                        HistoryTab.CARBON    -> CarbonTab(viewModel)
+                        HistoryTab.TRENDS    -> TrendsTab(viewModel)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
