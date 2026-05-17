@@ -53,6 +53,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         fullName = ""
         suburb = ""
         authError = null
+        messages.clear()
     }
 
     // ── Email/Password Sign In ────────────────────────────────────────────────
