@@ -63,7 +63,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 val user = auth.currentUser
                 if (user != null) {
                     fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
-                    loadUserProfile(user.uid) // listenToMessages called inside after householdId loads
+                    loadUserProfile(user.uid)
                     isLoggedIn = true
                     onSuccess()
                 }
@@ -98,8 +98,16 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
+                    // Update household member list with registered user
+                    if (householdMembers.isNotEmpty()) {
+                        householdMembers[0] = HouseholdMember(
+                            name    = fullName,
+                            email   = email,
+                            isOwner = isOwner
+                        )
+                    }
                     isLoggedIn = true
-                    listenToMessages() // householdId already set above
+                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -131,9 +139,16 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                         isOwner     = true
                         householdId = "HH-${System.currentTimeMillis() % 100000}"
                         saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
-                        listenToMessages() // new user, householdId set directly above
+                        if (householdMembers.isNotEmpty()) {
+                            householdMembers[0] = HouseholdMember(
+                                name    = fullName,
+                                email   = user.email ?: "",
+                                isOwner = true
+                            )
+                        }
+                        listenToMessages()
                     } else {
-                        loadUserProfile(user.uid) // listenToMessages called inside after householdId loads
+                        loadUserProfile(user.uid)
                     }
                     isLoggedIn = true
                     onSuccess()
@@ -163,6 +178,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Firestore: Load User Profile ──────────────────────────────────────────
     // listenToMessages() is called here after householdId is confirmed loaded
+    // householdMembers[0] is updated with the real user name and email from Firestore
     private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             try {
@@ -171,7 +187,17 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName    = doc.getString("fullName") ?: fullName
                     isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
-                    listenToMessages() // called after householdId is set from Firestore
+
+                    // Replace hardcoded owner entry with real user from Firestore
+                    if (householdMembers.isNotEmpty()) {
+                        householdMembers[0] = HouseholdMember(
+                            name    = fullName,
+                            email   = doc.getString("email") ?: "",
+                            isOwner = isOwner
+                        )
+                    }
+
+                    listenToMessages()
                 }
             } catch (e: Exception) {
                 Log.e("WattWiseAuth", "Failed to load user profile", e)
