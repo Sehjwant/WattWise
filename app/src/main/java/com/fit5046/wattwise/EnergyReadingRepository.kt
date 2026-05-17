@@ -16,6 +16,9 @@ class EnergyReadingRepository(private val dao: EnergyReadingDao) {
     fun getDailyTotals(fromDate: String, toDate: String): Flow<List<DailyTotal>> =
         dao.getDailyTotals(fromDate, toDate)
 
+    fun getHourlyAverages(fromDate: String, toDate: String): Flow<List<HourlyAverage>> =
+        dao.getHourlyAverages(fromDate, toDate)
+
     fun getCategoryBreakdown(fromDate: String, toDate: String): Flow<List<CategoryTotal>> =
         dao.getCategoryBreakdown(fromDate, toDate)
 

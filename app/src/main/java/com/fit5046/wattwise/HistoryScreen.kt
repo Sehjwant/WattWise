@@ -379,9 +379,11 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
 
 // ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 // ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
+// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 @Composable
 private fun TrendsTab(viewModel: WattWiseViewModel) {
-    val dailyTotals = viewModel.dailyTotals
+    val hourlyAverages = viewModel.hourlyAverages
+    val dailyTotals    = viewModel.dailyTotals
 
     val weeklyTotals = dailyTotals
         .chunked(7)
@@ -390,50 +392,34 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
         }
 
     val monthTotal = weeklyTotals.sumOf { it.second.toDouble() }
-    val bestWeek   = weeklyTotals.minByOrNull { it.second }
-    val worstWeek  = weeklyTotals.maxByOrNull { it.second }
+    val peakHour   = hourlyAverages.maxByOrNull { it.totalKwh }
+    val offPeakHour= hourlyAverages.minByOrNull { it.totalKwh }
 
     SummaryStatsRow(
         StatItem("Period Total", String.format("%.0f kWh", monthTotal), Color(0xFF0D47A1)),
-        StatItem("Best Week", bestWeek?.let {
-            "${it.first} — ${String.format("%.0f", it.second)}"
-        } ?: "N/A", Color(0xFF2E7D32)),
-        StatItem("Worst Week", worstWeek?.let {
-            "${it.first} — ${String.format("%.0f", it.second)}"
-        } ?: "N/A", Color(0xFFB71C1C))
+        StatItem("Peak Hour", peakHour?.let {
+            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)}"
+        } ?: "N/A", Color(0xFFB71C1C)),
+        StatItem("Low Hour", offPeakHour?.let {
+            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)}"
+        } ?: "N/A", Color(0xFF2E7D32))
     )
 
     ChartCard(
-        title = "Daily Usage Trend (kWh)",
-        subtitle = "Line chart — each point is one day from Room data"
+        title = "Average Hourly Usage (kWh)",
+        subtitle = "Average energy per hour across selected period"
     ) {
-        if (dailyTotals.isEmpty()) {
+        if (hourlyAverages.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().height(100.dp),
                 contentAlignment = Alignment.Center) {
                 Text("No data for selected range", color = Color.Gray)
             }
-        } else if (dailyTotals.size == 1) {
-            Box(modifier = Modifier.fillMaxWidth().height(100.dp),
-                contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(String.format("%.1f kWh", dailyTotals[0].totalKwh),
-                        fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32))
-                    Text("Single day selected", fontSize = 13.sp, color = Color.Gray)
-                }
-            }
         } else {
-            // Use daily data for line chart
-            val lineData = dailyTotals.map {
-                it.date.takeLast(5) to it.totalKwh.toFloat()
-            }
-            val maxVal = lineData.maxOf { it.second }
-            val minVal = lineData.minOf { it.second }
-            val range  = (maxVal - minVal).coerceAtLeast(1f)
-            val peakDay = lineData.maxByOrNull { it.second }
-            val bestDay = lineData.minByOrNull { it.second }
+            val maxVal = hourlyAverages.maxOf { it.totalKwh }.toFloat()
+            val minVal = hourlyAverages.minOf { it.totalKwh }.toFloat()
+            val range  = (maxVal - minVal).coerceAtLeast(0.1f)
 
-            // Canvas line chart
+            // Canvas line chart — hourly
             androidx.compose.foundation.Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -442,7 +428,7 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
             ) {
                 val width  = size.width
                 val height = size.height
-                val stepX  = width / (lineData.size - 1).toFloat()
+                val stepX  = width / (hourlyAverages.size - 1).toFloat()
 
                 // Draw grid lines
                 for (i in 0..4) {
@@ -455,36 +441,46 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
                     )
                 }
 
+                // Draw peak tariff zones (7-9am, 5-9pm) as background
+                listOf(7..9, 17..21).forEach { range ->
+                    val startX = range.first * stepX
+                    val endX   = range.last * stepX
+                    drawRect(
+                        color  = androidx.compose.ui.graphics.Color(0xFFFFEBEE),
+                        topLeft = androidx.compose.ui.geometry.Offset(startX, 0f),
+                        size   = androidx.compose.ui.geometry.Size(endX - startX, height)
+                    )
+                }
+
                 // Draw line path
                 val path = androidx.compose.ui.graphics.Path()
-                lineData.forEachIndexed { index, (_, value) ->
+                hourlyAverages.forEachIndexed { index, avg ->
                     val x = index * stepX
-                    val y = height - ((value - minVal) / range * height * 0.85f) - height * 0.05f
+                    val y = height - ((avg.totalKwh.toFloat() - minVal) / range * height * 0.85f) - height * 0.05f
                     if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
                 drawPath(
                     path  = path,
-                    color = androidx.compose.ui.graphics.Color(0xFF2E7D32.toInt()),
+                    color = androidx.compose.ui.graphics.Color(0xFF1B5E20.toInt()),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 4f,
+                        width = 3f,
                         cap   = androidx.compose.ui.graphics.StrokeCap.Round,
                         join  = androidx.compose.ui.graphics.StrokeJoin.Round
                     )
                 )
 
-                // Draw dots — only for peak and best day to avoid clutter
-                lineData.forEachIndexed { index, (date, value) ->
+                // Draw dots for peak and off-peak hours only
+                hourlyAverages.forEachIndexed { index, avg ->
                     val x       = index * stepX
-                    val y       = height - ((value - minVal) / range * height * 0.85f) - height * 0.05f
-                    val isPeak  = date == peakDay?.first
-                    val isBest  = date == bestDay?.first
-                    if (isPeak || isBest || lineData.size <= 10) {
+                    val y       = height - ((avg.totalKwh.toFloat() - minVal) / range * height * 0.85f) - height * 0.05f
+                    val isPeak  = avg.hour == peakHour?.hour
+                    val isLow   = avg.hour == offPeakHour?.hour
+                    if (isPeak || isLow) {
                         drawCircle(
-                            color  = when {
-                                isPeak -> androidx.compose.ui.graphics.Color(0xFFB71C1C.toInt())
-                                isBest -> androidx.compose.ui.graphics.Color(0xFF2E7D32.toInt())
-                                else   -> androidx.compose.ui.graphics.Color(0xFF0D47A1.toInt())
-                            },
+                            color  = if (isPeak)
+                                androidx.compose.ui.graphics.Color(0xFFB71C1C.toInt())
+                            else
+                                androidx.compose.ui.graphics.Color(0xFF2E7D32.toInt()),
                             radius = 10f,
                             center = androidx.compose.ui.geometry.Offset(x, y)
                         )
@@ -497,42 +493,23 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
                 }
             }
 
-            // Show only first, middle and last date to avoid clutter
+            // Hour labels — show every 6 hours
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(lineData.firstOrNull()?.first ?: "",
-                    fontSize = 10.sp, color = Color.Gray)
-                Text("${lineData.size} days",
-                    fontSize = 10.sp, color = Color.Gray)
-                Text(lineData.lastOrNull()?.first ?: "",
-                    fontSize = 10.sp, color = Color.Gray)
+                listOf(0, 6, 12, 18, 23).forEach { hour ->
+                    Text("${hour}:00", fontSize = 9.sp, color = Color.Gray)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Peak and best day labels
-            Row(modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween) {
-                peakDay?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp)
-                            .background(Color(0xFFB71C1C), RoundedCornerShape(4.dp)))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Peak: ${it.first} ${String.format("%.0f", it.second)} kWh",
-                            fontSize = 10.sp, color = Color(0xFFB71C1C))
-                    }
-                }
-                bestDay?.let {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp)
-                            .background(Color(0xFF2E7D32), RoundedCornerShape(4.dp)))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Best: ${it.first} ${String.format("%.0f", it.second)} kWh",
-                            fontSize = 10.sp, color = Color(0xFF2E7D32))
-                    }
-                }
+            // Legend
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LegendItem(Color(0xFFFFEBEE), "Peak tariff hours")
+                LegendItem(Color(0xFFB71C1C), "Peak hour")
+                LegendItem(Color(0xFF2E7D32), "Low hour")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -552,11 +529,12 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
 
     InsightCard(
         icon = Icons.Default.TrendingUp,
-        title = "Trend Analysis",
-        body = worstWeek?.let {
-            "Your usage peaked in ${it.first} (${String.format("%.0f", it.second)} kWh). " +
-                    "Setting a WorkManager alert at 80% of your weekly budget can help prevent overage."
-        } ?: "Select a date range to see trend analysis.",
+        title = "Hourly Usage Pattern",
+        body = peakHour?.let {
+            "Your highest average consumption is at ${it.hour}:00 " +
+                    "(${String.format("%.1f", it.totalKwh)} kWh). " +
+                    "Pink zones show peak tariff periods — shift usage to off-peak to save money."
+        } ?: "Select a date range to see hourly patterns.",
         tint = Color(0xFF0D47A1)
     )
 }

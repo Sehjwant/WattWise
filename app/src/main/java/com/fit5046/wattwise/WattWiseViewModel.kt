@@ -328,6 +328,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var selectedFromDate by mutableStateOf("")
     var selectedToDate by mutableStateOf("")
 
+    var hourlyAverages = mutableStateListOf<HourlyAverage>()
     // Hourly accumulator
     private val hourlyAccumulator = mutableListOf<CsvSensorRow>()
     private var hourlyKwhSum = 0.0
@@ -431,6 +432,12 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             energyReadingRepository.getCategoryBreakdown(fromDate, toDate).collect { breakdown ->
                 categoryBreakdown.clear()
                 categoryBreakdown.addAll(breakdown)
+            }
+        }
+        viewModelScope.launch {
+            energyReadingRepository.getHourlyAverages(fromDate, toDate).collect { averages ->
+                hourlyAverages.clear()
+                hourlyAverages.addAll(averages)
             }
         }
     }

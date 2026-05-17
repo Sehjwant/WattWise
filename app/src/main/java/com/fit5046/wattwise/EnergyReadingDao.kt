@@ -29,7 +29,11 @@ interface EnergyReadingDao {
 
     @Query("DELETE FROM energy_readings")
     suspend fun deleteAll()
+
+    @Query("SELECT hour, AVG(totalKwh) as totalKwh FROM energy_readings WHERE date BETWEEN :fromDate AND :toDate GROUP BY hour ORDER BY hour")
+    fun getHourlyAverages(fromDate: String, toDate: String): Flow<List<HourlyAverage>>
 }
 
 data class DailyTotal(val date: String, val totalKwh: Double)
 data class CategoryTotal(val category: String, val totalKwh: Double)
+data class HourlyAverage(val hour: Int, val totalKwh: Double)
