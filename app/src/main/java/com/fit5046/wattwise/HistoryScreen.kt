@@ -80,3 +80,66 @@ private enum class HistoryTab(val label: String, val emoji: String) {
 
 // ── Reusable data class ───────────────────────────────────────────────────────
 private data class StatItem(val label: String, val value: String, val color: Color)
+
+// ── Reusable composables ──────────────────────────────────────────────────────
+@Composable
+private fun SummaryStatsRow(vararg stats: StatItem) {
+    Row(modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        stats.forEach { stat ->
+            Card(modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(1.dp)) {
+                Column(modifier = Modifier.padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(stat.label, fontSize = 10.sp, color = Color.Gray,
+                        fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(stat.value, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        color = stat.color)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartCard(title: String, subtitle: String, content: @Composable () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20), fontSize = 15.sp)
+            Text(subtitle, fontSize = 11.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(16.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun InsightCard(icon: String, title: String, body: String, tint: Color) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.07f)),
+        elevation = CardDefaults.cardElevation(0.dp)) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
+            Text(icon, fontSize = 24.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, color = tint, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(body, fontSize = 13.sp, color = Color(0xFF424242), lineHeight = 18.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(10.dp).background(color, RoundedCornerShape(2.dp)))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, fontSize = 10.sp, color = Color.Gray)
+    }
+}
+
