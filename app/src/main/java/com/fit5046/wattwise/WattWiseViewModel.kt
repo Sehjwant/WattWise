@@ -326,69 +326,10 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Household Messaging ───────────────────────────────────────────────────
-    val messages = mutableStateListOf(
-        HouseholdMessage(
-            id         = 1,
-            senderName = "WattWise — ContextEngine",
-            body       = "⚡ Peak tariff active (0.22 AUD/kWh). Consider deferring the " +
-                    "washing machine and dishwasher until after 10 PM off-peak.",
-            timestamp  = "8:02 AM",
-            type       = MessageType.ALERT
-        ),
-        HouseholdMessage(
-            id         = 2,
-            senderName = "Sarah Chen",
-            body       = "Got it — I'll run the dishwasher tonight. Is the oven still on?",
-            timestamp  = "8:05 AM",
-            type       = MessageType.RECEIVED
-        ),
-        HouseholdMessage(
-            id         = 3,
-            senderName = "Alex Johnson",
-            body       = "No I turned it off. The AC is the big one right now — room temp is 31°C.",
-            timestamp  = "8:07 AM",
-            type       = MessageType.SENT
-        ),
-        HouseholdMessage(
-            id         = 4,
-            senderName = "WattWise — WorkManager",
-            body       = "⚠️ Budget alert: you have used 80% of your daily energy budget " +
-                    "(16.0 / 20.0 kWh). Shift remaining appliances to off-peak to avoid overage.",
-            timestamp  = "1:14 PM",
-            type       = MessageType.ALERT
-        ),
-        HouseholdMessage(
-            id         = 5,
-            senderName = "Mike Williams",
-            body       = "I'm heading out — should be zero occupancy from 2–6 PM. " +
-                    "Turning off the AC now.",
-            timestamp  = "1:18 PM",
-            type       = MessageType.RECEIVED
-        ),
-        HouseholdMessage(
-            id         = 6,
-            senderName = "Alex Johnson",
-            body       = "Thanks Mike 👍 that'll help a lot with the budget.",
-            timestamp  = "1:20 PM",
-            type       = MessageType.SENT
-        ),
-        HouseholdMessage(
-            id         = 7,
-            senderName = "WattWise — ContextEngine",
-            body       = "🌿 Standby waste detected: 0.3 kWh consumed with zero occupancy. " +
-                    "Check for appliances left in standby mode.",
-            timestamp  = "3:45 PM",
-            type       = MessageType.ALERT
-        ),
-        HouseholdMessage(
-            id         = 8,
-            senderName = "Sarah Chen",
-            body       = "Probably the TV on standby in the living room — I'll switch it off " +
-                    "at the wall when I get home.",
-            timestamp  = "3:52 PM",
-            type       = MessageType.RECEIVED
-        )
-    )
+    // ── Household Messaging (Firestore-backed) ────────────────────────────────
+// Stored in Firestore: /households/{householdId}/messages/{messageId}
+// Real-time snapshot listener keeps all household devices in sync.
+    val messages = mutableStateListOf<HouseholdMessage>()
 
     fun sendMessage(text: String) {
         val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
