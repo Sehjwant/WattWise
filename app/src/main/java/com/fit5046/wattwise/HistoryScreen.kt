@@ -329,8 +329,10 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
         } else {
             val maxCo2 = co2Data.maxOf { it.second }
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 co2Data.forEach { (day, co2) ->
@@ -377,8 +379,6 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
 }
 
 
-// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
-// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 // ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 @Composable
 private fun TrendsTab(viewModel: WattWiseViewModel) {

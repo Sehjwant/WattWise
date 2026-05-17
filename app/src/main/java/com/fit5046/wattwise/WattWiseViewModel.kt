@@ -15,6 +15,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import android.util.Log
+import androidx.compose.remote.creation.first
+import kotlinx.coroutines.flow.first
 
 data class SensorReading(
     val applianceName: String,
@@ -429,11 +431,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             }
         }
         viewModelScope.launch {
-            energyReadingRepository.getCategoryBreakdown(fromDate, toDate).collect { breakdown ->
-                categoryBreakdown.clear()
-                categoryBreakdown.addAll(breakdown)
-            }
+            val breakdown = energyReadingRepository.getCategoryBreakdown(fromDate, toDate).first()
+            categoryBreakdown.clear()
+            categoryBreakdown.addAll(breakdown)
         }
+
         viewModelScope.launch {
             energyReadingRepository.getHourlyAverages(fromDate, toDate).collect { averages ->
                 hourlyAverages.clear()
