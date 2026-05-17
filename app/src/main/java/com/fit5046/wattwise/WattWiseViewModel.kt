@@ -12,9 +12,9 @@ import kotlinx.coroutines.launch
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import android.util.Log
-import com.google.firebase.firestore.Query
 
 data class SensorReading(
     val applianceName: String,
@@ -33,26 +33,23 @@ data class HouseholdMember(
 
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
-    // ── Room Database ─────────────────────────────────────────────────────────
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
-
-    // Firebase Authentication and Firestore instances
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     // ── Auth / User ───────────────────────────────────────────────────────────
-    var isLoggedIn  by mutableStateOf(false)
-    var isOwner     by mutableStateOf(true)
-    var householdId by mutableStateOf("HH-20261001")
-    var authError by mutableStateOf<String?>(null)
+    var isLoggedIn    by mutableStateOf(false)
+    var isOwner       by mutableStateOf(true)
+    var householdId   by mutableStateOf("HH-20261001")
+    var authError     by mutableStateOf<String?>(null)
     var isAuthLoading by mutableStateOf(false)
 
     fun logout() {
         auth.signOut()
         isLoggedIn = false
-        fullName = ""
-        suburb = ""
-        authError = null
+        fullName   = ""
+        suburb     = ""
+        authError  = null
         messages.clear()
     }
 
@@ -68,18 +65,15 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
                     loadUserProfile(user.uid)
                     isLoggedIn = true
+                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
                 authError = when {
-                    e.message?.contains("no user record") == true ->
-                        "No account found with this email"
-                    e.message?.contains("password is invalid") == true ->
-                        "Incorrect password"
-                    e.message?.contains("badly formatted") == true ->
-                        "Please enter a valid email address"
-                    e.message?.contains("network") == true ->
-                        "Network error. Please check your connection"
+                    e.message?.contains("no user record") == true -> "No account found with this email"
+                    e.message?.contains("password is invalid") == true -> "Incorrect password"
+                    e.message?.contains("badly formatted") == true -> "Please enter a valid email address"
+                    e.message?.contains("network") == true -> "Network error. Please check your connection"
                     else -> e.message ?: "Sign in failed"
                 }
             } finally {
@@ -100,22 +94,20 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 auth.createUserWithEmailAndPassword(email, password).await()
                 val user = auth.currentUser
                 if (user != null) {
-                    fullName = name
-                    isOwner = role == "Owner"
+                    fullName    = name
+                    isOwner     = role == "Owner"
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
                     isLoggedIn = true
+                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
                 authError = when {
-                    e.message?.contains("email address is already in use") == true ->
-                        "An account with this email already exists"
-                    e.message?.contains("weak password") == true ->
-                        "Password is too weak"
-                    e.message?.contains("badly formatted") == true ->
-                        "Please enter a valid email address"
+                    e.message?.contains("email address is already in use") == true -> "An account with this email already exists"
+                    e.message?.contains("weak password") == true -> "Password is too weak"
+                    e.message?.contains("badly formatted") == true -> "Please enter a valid email address"
                     else -> e.message ?: "Registration failed"
                 }
             } finally {
@@ -137,13 +129,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName = user.displayName ?: "Google User"
                     val doc = firestore.collection("users").document(user.uid).get().await()
                     if (!doc.exists()) {
-                        isOwner = true
+                        isOwner     = true
                         householdId = "HH-${System.currentTimeMillis() % 100000}"
                         saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
                     } else {
                         loadUserProfile(user.uid)
                     }
                     isLoggedIn = true
+                    listenToMessages()
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -157,14 +150,13 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Firestore: Save User Profile ──────────────────────────────────────────
     private suspend fun saveUserProfile(uid: String, name: String, email: String, role: String, hhId: String) {
         try {
-            val userProfile = hashMapOf(
-                "fullName" to name,
-                "email" to email,
-                "role" to role,
+            firestore.collection("users").document(uid).set(hashMapOf(
+                "fullName"    to name,
+                "email"       to email,
+                "role"        to role,
                 "householdId" to hhId,
-                "createdAt" to com.google.firebase.Timestamp.now()
-            )
-            firestore.collection("users").document(uid).set(userProfile).await()
+                "createdAt"   to com.google.firebase.Timestamp.now()
+            )).await()
         } catch (e: Exception) {
             Log.e("WattWiseAuth", "Failed to save user profile", e)
         }
@@ -176,8 +168,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             try {
                 val doc = firestore.collection("users").document(uid).get().await()
                 if (doc.exists()) {
-                    fullName = doc.getString("fullName") ?: fullName
-                    isOwner = doc.getString("role") == "Owner"
+                    fullName    = doc.getString("fullName") ?: fullName
+                    isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
                 }
             } catch (e: Exception) {
@@ -231,18 +223,9 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun addAppliance(appliance: Appliance) {
-        viewModelScope.launch { dao.insert(appliance) }
-    }
-
-    fun deleteAppliance(id: Int) {
-        viewModelScope.launch { dao.deleteById(id) }
-    }
-
-    fun updateAppliance(updated: Appliance) {
-        viewModelScope.launch { dao.update(updated) }
-    }
-
+    fun addAppliance(appliance: Appliance) { viewModelScope.launch { dao.insert(appliance) } }
+    fun deleteAppliance(id: Int)           { viewModelScope.launch { dao.deleteById(id) } }
+    fun updateAppliance(updated: Appliance){ viewModelScope.launch { dao.update(updated) } }
     fun nextId(): Int = (appliances.maxOfOrNull { it.id } ?: 0) + 1
 
     // ── Sensor / ContextEngine ────────────────────────────────────────────────
@@ -277,7 +260,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Search ────────────────────────────────────────────────────────────────
     var searchQuery by mutableStateOf("")
-
     val filteredAppliances: List<Appliance>
         get() = if (searchQuery.isBlank()) appliances
         else appliances.filter {
@@ -287,7 +269,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
     private val weatherRepository = WeatherRepository()
-
     var weather by mutableStateOf(WeatherUiState())
         private set
 
@@ -317,35 +298,95 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // ── Next Hour Forecast (TFLite placeholder) ───────────────────────────────
+    // ── Next Hour Forecast ────────────────────────────────────────────────────
     var nextHourForecastKwh by mutableStateOf(0.0)
         private set
+    fun updateForecast(predictedKwh: Double) { nextHourForecastKwh = predictedKwh }
 
-    fun updateForecast(predictedKwh: Double) {
-        nextHourForecastKwh = predictedKwh
-    }
-
-    // ── Household Messaging ───────────────────────────────────────────────────
     // ── Household Messaging (Firestore-backed) ────────────────────────────────
-// Stored in Firestore: /households/{householdId}/messages/{messageId}
-// Real-time snapshot listener keeps all household devices in sync.
+    // Stored in Firestore: /households/{householdId}/messages/{messageId}
+    // Real-time snapshot listener keeps all household devices in sync.
     val messages = mutableStateListOf<HouseholdMessage>()
 
+    fun listenToMessages() {
+        firestore.collection("households")
+            .document(householdId)
+            .collection("messages")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("WattWiseMessaging", "Listen failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    messages.clear()
+                    var idCounter = 1
+                    for (doc in snapshot.documents) {
+                        val senderName = doc.getString("senderName") ?: ""
+                        val body       = doc.getString("body") ?: ""
+                        val timestamp  = doc.getString("timestamp") ?: ""
+                        val typeStr    = doc.getString("type") ?: "SENT"
+                        val resolvedType = when {
+                            typeStr == "ALERT"       -> MessageType.ALERT
+                            senderName == fullName   -> MessageType.SENT
+                            else                     -> MessageType.RECEIVED
+                        }
+                        messages.add(
+                            HouseholdMessage(
+                                id         = idCounter++,
+                                senderName = senderName,
+                                body       = body,
+                                timestamp  = timestamp,
+                                type       = resolvedType
+                            )
+                        )
+                    }
+                }
+            }
+    }
+
     fun sendMessage(text: String) {
-        val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
-        val cal = java.util.Calendar.getInstance()
-        val hour = cal.get(java.util.Calendar.HOUR)
-        val minute = cal.get(java.util.Calendar.MINUTE)
-        val amPm = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
-        messages.add(
-            HouseholdMessage(
-                id         = newId,
-                senderName = fullName.ifBlank { "Alex Johnson" },
-                body       = text,
-                timestamp  = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm),
-                type       = MessageType.SENT
-            )
-        )
+        val cal       = java.util.Calendar.getInstance()
+        val hour      = cal.get(java.util.Calendar.HOUR)
+        val minute    = cal.get(java.util.Calendar.MINUTE)
+        val amPm      = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
+        val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
+
+        firestore.collection("households")
+            .document(householdId)
+            .collection("messages")
+            .add(hashMapOf(
+                "senderName" to fullName.ifBlank { "Unknown" },
+                "body"       to text,
+                "timestamp"  to timestamp,
+                "type"       to "SENT",
+                "createdAt"  to com.google.firebase.Timestamp.now()
+            ))
+            .addOnFailureListener { e ->
+                Log.e("WattWiseMessaging", "Failed to send message", e)
+            }
+    }
+
+    fun sendAlertMessage(alertBody: String) {
+        val cal       = java.util.Calendar.getInstance()
+        val hour      = cal.get(java.util.Calendar.HOUR)
+        val minute    = cal.get(java.util.Calendar.MINUTE)
+        val amPm      = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
+        val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
+
+        firestore.collection("households")
+            .document(householdId)
+            .collection("messages")
+            .add(hashMapOf(
+                "senderName" to "WattWise — ContextEngine",
+                "body"       to alertBody,
+                "timestamp"  to timestamp,
+                "type"       to "ALERT",
+                "createdAt"  to com.google.firebase.Timestamp.now()
+            ))
+            .addOnFailureListener { e ->
+                Log.e("WattWiseMessaging", "Failed to send alert", e)
+            }
     }
 
     // ── SmartMeterSimulator + ContextEngine ───────────────────────────────────
@@ -359,7 +400,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             simulator!!.stream().collect { row ->
-                // Update sensory data from CSV row
                 currentEnergyKwh  = row.energyKwh
                 currentTariff     = row.tariffPerKwh
                 currentTariffTier = row.tariffTier
@@ -367,11 +407,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 occupancyCount    = row.occupancyCount
                 isWeekend         = row.isWeekend
                 isHoliday         = row.isHoliday
-
-                // Accumulate daily energy
                 dailyCumulativeKwh += row.energyKwh * 0.01
 
-                // Update live readings feed
                 val newReading = SensorReading(
                     applianceName  = row.applianceName,
                     energyKwh      = row.energyKwh,
@@ -383,7 +420,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 if (liveReadings.size >= 20) liveReadings.removeAt(0)
                 liveReadings.add(0, newReading)
 
-                // Run ContextEngine to compute situation state
                 val result = ContextEngine.compute(
                     row           = row,
                     budgetGoal    = budgetGoal.toDoubleOrNull() ?: 20.0,
@@ -392,26 +428,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 contextState = result.stateLabel
                 contextTip   = result.tip
 
-                // Add alert to messaging screen if triggered
-                result.alertMessage?.let { alert ->
-                    val newId = (messages.maxOfOrNull { it.id } ?: 0) + 1
-                    messages.add(
-                        HouseholdMessage(
-                            id         = newId,
-                            senderName = "WattWise — ContextEngine",
-                            body       = alert,
-                            timestamp  = java.time.LocalTime.now().let {
-                                String.format(
-                                    "%d:%02d %s",
-                                    if (it.hour % 12 == 0) 12 else it.hour % 12,
-                                    it.minute,
-                                    if (it.hour < 12) "AM" else "PM"
-                                )
-                            },
-                            type = MessageType.ALERT
-                        )
-                    )
-                }
+                // Send alert to Firestore so all household members see it
+                result.alertMessage?.let { alert -> sendAlertMessage(alert) }
             }
         }
     }
