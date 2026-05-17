@@ -34,6 +34,8 @@ data class HouseholdMember(
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
+    private val energyReadingDao = WattWiseDatabase.getDatabase(application).energyReadingDao()
+    private val energyReadingRepository = EnergyReadingRepository(energyReadingDao)
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
@@ -318,8 +320,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         }
 
     // ── Energy History (Room) ─────────────────────────────────────────────────
-    private val energyReadingDao = WattWiseDatabase.getDatabase(application).energyReadingDao()
-    private val energyReadingRepository = EnergyReadingRepository(energyReadingDao)
+
 
     // State for history charts
     var dailyTotals = mutableStateListOf<DailyTotal>()

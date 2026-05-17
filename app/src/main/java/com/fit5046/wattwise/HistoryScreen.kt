@@ -176,8 +176,10 @@ private fun DailyUsageTab(viewModel: WattWiseViewModel) {
         } else {
             val maxVal = dailyTotals.maxOf { it.totalKwh }.toFloat()
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 dailyTotals.forEach { daily ->
@@ -374,6 +376,8 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
     )
 }
 
+
+// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 // ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
 @Composable
 private fun TrendsTab(viewModel: WattWiseViewModel) {
@@ -392,65 +396,145 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
     SummaryStatsRow(
         StatItem("Period Total", String.format("%.0f kWh", monthTotal), Color(0xFF0D47A1)),
         StatItem("Best Week", bestWeek?.let {
-            "${it.first} ${String.format("%.0f", it.second)}"
+            "${it.first} — ${String.format("%.0f", it.second)}"
         } ?: "N/A", Color(0xFF2E7D32)),
         StatItem("Worst Week", worstWeek?.let {
-            "${it.first} ${String.format("%.0f", it.second)}"
+            "${it.first} — ${String.format("%.0f", it.second)}"
         } ?: "N/A", Color(0xFFB71C1C))
     )
 
     ChartCard(
-        title = "Weekly Usage Trend (kWh)",
-        subtitle = "Aggregated from daily Room data"
+        title = "Daily Usage Trend (kWh)",
+        subtitle = "Line chart — each point is one day from Room data"
     ) {
-        if (weeklyTotals.isEmpty()) {
+        if (dailyTotals.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().height(100.dp),
                 contentAlignment = Alignment.Center) {
                 Text("No data for selected range", color = Color.Gray)
             }
+        } else if (dailyTotals.size == 1) {
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp),
+                contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(String.format("%.1f kWh", dailyTotals[0].totalKwh),
+                        fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32))
+                    Text("Single day selected", fontSize = 13.sp, color = Color.Gray)
+                }
+            }
         } else {
-            val maxVal = weeklyTotals.maxOf { it.second }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
+            // Use daily data for line chart
+            val lineData = dailyTotals.map {
+                it.date.takeLast(5) to it.totalKwh.toFloat()
+            }
+            val maxVal = lineData.maxOf { it.second }
+            val minVal = lineData.minOf { it.second }
+            val range  = (maxVal - minVal).coerceAtLeast(1f)
+            val peakDay = lineData.maxByOrNull { it.second }
+            val bestDay = lineData.minByOrNull { it.second }
+
+            // Canvas line chart
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .padding(horizontal = 8.dp)
             ) {
-                weeklyTotals.forEach { (week, value) ->
-                    val isBest  = week == bestWeek?.first
-                    val isWorst = week == worstWeek?.first
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            String.format("%.0f", value),
-                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                            color = when {
-                                isWorst -> Color(0xFFB71C1C)
-                                isBest  -> Color(0xFF2E7D32)
-                                else    -> Color.Gray
-                            }
+                val width  = size.width
+                val height = size.height
+                val stepX  = width / (lineData.size - 1).toFloat()
+
+                // Draw grid lines
+                for (i in 0..4) {
+                    val y = height / 4 * i
+                    drawLine(
+                        color = androidx.compose.ui.graphics.Color(0xFFEEEEEE),
+                        start = androidx.compose.ui.geometry.Offset(0f, y),
+                        end   = androidx.compose.ui.geometry.Offset(width, y),
+                        strokeWidth = 1f
+                    )
+                }
+
+                // Draw line path
+                val path = androidx.compose.ui.graphics.Path()
+                lineData.forEachIndexed { index, (_, value) ->
+                    val x = index * stepX
+                    val y = height - ((value - minVal) / range * height * 0.85f) - height * 0.05f
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(
+                    path  = path,
+                    color = androidx.compose.ui.graphics.Color(0xFF2E7D32.toInt()),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 4f,
+                        cap   = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join  = androidx.compose.ui.graphics.StrokeJoin.Round
+                    )
+                )
+
+                // Draw dots — only for peak and best day to avoid clutter
+                lineData.forEachIndexed { index, (date, value) ->
+                    val x       = index * stepX
+                    val y       = height - ((value - minVal) / range * height * 0.85f) - height * 0.05f
+                    val isPeak  = date == peakDay?.first
+                    val isBest  = date == bestDay?.first
+                    if (isPeak || isBest || lineData.size <= 10) {
+                        drawCircle(
+                            color  = when {
+                                isPeak -> androidx.compose.ui.graphics.Color(0xFFB71C1C.toInt())
+                                isBest -> androidx.compose.ui.graphics.Color(0xFF2E7D32.toInt())
+                                else   -> androidx.compose.ui.graphics.Color(0xFF0D47A1.toInt())
+                            },
+                            radius = 10f,
+                            center = androidx.compose.ui.geometry.Offset(x, y)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(52.dp)
-                                .height(((value / maxVal) * 100).dp.coerceAtLeast(4.dp))
-                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                .background(when {
-                                    isWorst -> Color(0xFFEF9A9A)
-                                    isBest  -> Color(0xFFA5D6A7)
-                                    else    -> Color(0xFF64B5F6)
-                                })
+                        drawCircle(
+                            color  = androidx.compose.ui.graphics.Color.White,
+                            radius = 4f,
+                            center = androidx.compose.ui.geometry.Offset(x, y)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(week, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                            color = Color(0xFF424242))
-                        if (isBest)  Text("best", fontSize = 9.sp, color = Color(0xFF2E7D32))
-                        if (isWorst) Text("high", fontSize = 9.sp, color = Color(0xFFB71C1C))
                     }
                 }
             }
+
+            // Show only first, middle and last date to avoid clutter
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(lineData.firstOrNull()?.first ?: "",
+                    fontSize = 10.sp, color = Color.Gray)
+                Text("${lineData.size} days",
+                    fontSize = 10.sp, color = Color.Gray)
+                Text(lineData.lastOrNull()?.first ?: "",
+                    fontSize = 10.sp, color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Peak and best day labels
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween) {
+                peakDay?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp)
+                            .background(Color(0xFFB71C1C), RoundedCornerShape(4.dp)))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Peak: ${it.first} ${String.format("%.0f", it.second)} kWh",
+                            fontSize = 10.sp, color = Color(0xFFB71C1C))
+                    }
+                }
+                bestDay?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp)
+                            .background(Color(0xFF2E7D32), RoundedCornerShape(4.dp)))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Best: ${it.first} ${String.format("%.0f", it.second)} kWh",
+                            fontSize = 10.sp, color = Color(0xFF2E7D32))
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color(0xFFEEEEEE))
             Spacer(modifier = Modifier.height(8.dp))
@@ -476,6 +560,7 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
         tint = Color(0xFF0D47A1)
     )
 }
+
 
 // ── Main HistoryScreen ────────────────────────────────────────────────────────
 @RequiresApi(Build.VERSION_CODES.O)
