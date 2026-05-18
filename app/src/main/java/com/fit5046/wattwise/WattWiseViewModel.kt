@@ -298,6 +298,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var has100PercentAlertFired by mutableStateOf(false)
 
     var showBudgetPopup         by mutableStateOf<String?>(null)
+
+    // Resets daily alert flags — called at midnight or when budget goal changes
+    fun resetDailyAlerts() {
+        has80PercentAlertFired = false
+        has100PercentAlertFired = false
+        dailyCumulativeKwh = 0.0
+    }
+
     var isWeekend          by mutableStateOf(false)
     var isHoliday          by mutableStateOf(false)
 
