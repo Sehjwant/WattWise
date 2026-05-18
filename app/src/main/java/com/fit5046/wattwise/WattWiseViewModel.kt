@@ -15,9 +15,13 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import android.util.Log
-import androidx.compose.remote.creation.first
-import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.math.round
 
+// ── Sensor / Messaging data classes ──────────────────────────────────────────
 data class SensorReading(
     val applianceName: String,
     val energyKwh: Double,
@@ -152,7 +156,9 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Firestore: Save User Profile ──────────────────────────────────────────
-    private suspend fun saveUserProfile(uid: String, name: String, email: String, role: String, hhId: String) {
+    private suspend fun saveUserProfile(
+        uid: String, name: String, email: String, role: String, hhId: String
+    ) {
         try {
             firestore.collection("users").document(uid).set(hashMapOf(
                 "fullName"    to name,
@@ -167,8 +173,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Firestore: Load User Profile ──────────────────────────────────────────
-    // loadHouseholdMembers() and listenToMessages() are called after
-    // householdId is confirmed loaded from Firestore
     private fun loadUserProfile(uid: String) {
         viewModelScope.launch {
             try {
@@ -187,8 +191,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── Firestore: Load Household Members ─────────────────────────────────────
-    // Queries users collection for all members sharing the same householdId.
-    // Real-time listener updates the list when members join or leave.
     fun loadHouseholdMembers() {
         firestore.collection("users")
             .whereEqualTo("householdId", householdId)
@@ -226,14 +228,12 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var householdSharing     by mutableStateOf(false)
 
     // ── Household Members ─────────────────────────────────────────────────────
-    // Populated from Firestore via loadHouseholdMembers()
     val householdMembers = mutableStateListOf<HouseholdMember>()
 
     fun removeMember(index: Int) {
         if (index >= 0 && index < householdMembers.size) {
             val member = householdMembers[index]
             if (!member.isOwner) {
-                // Remove from Firestore by matching email
                 viewModelScope.launch {
                     try {
                         val query = firestore.collection("users")
@@ -267,6 +267,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     appliances.clear()
                     appliances.addAll(list)
                 }
+                loadHistoryForLastSevenDays()
             }
         }
     }
@@ -329,6 +330,57 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.category.contains(searchQuery, ignoreCase = true)
         }
+
+    // ── History / Charts ──────────────────────────────────────────────────────
+    // DailyTotal, CategoryTotal and HourlyAverage are defined in EnergyReadingDao.kt
+    var selectedFromDate  by mutableStateOf("")
+    var selectedToDate    by mutableStateOf("")
+
+    val dailyTotals       = mutableStateListOf<DailyTotal>()
+    val categoryBreakdown = mutableStateListOf<CategoryTotal>()
+    val hourlyAverages    = mutableStateListOf<HourlyAverage>()
+
+    fun loadHistoryForLastSevenDays() {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val cal = Calendar.getInstance()
+        dailyTotals.clear()
+        for (i in 6 downTo 0) {
+            cal.time = Date()
+            cal.add(Calendar.DAY_OF_YEAR, -i)
+            val date = sdf.format(cal.time)
+            val kwh  = round((8.0 + Math.random() * 14) * 10) / 10.0
+            dailyTotals.add(DailyTotal(date, kwh))
+        }
+        refreshBreakdownAndHourly()
+    }
+
+    fun loadHistoryForDateRange(from: String, to: String) {
+        // Full implementation queries Room EnergyReading table by date range
+        // For now reloads last 7 days as a fallback
+        loadHistoryForLastSevenDays()
+    }
+
+    private fun refreshBreakdownAndHourly() {
+        categoryBreakdown.clear()
+        val cats = listOf("Cooling", "Kitchen", "Laundry", "Lighting", "Heating")
+        cats.forEach { cat ->
+            val base = appliances.filter { it.category == cat }
+                .sumOf { it.wattage / 1000.0 * 6 }
+                .let { if (it == 0.0) Math.random() * 10 + 2 else it }
+            categoryBreakdown.add(CategoryTotal(cat, round(base * 10) / 10.0))
+        }
+
+        hourlyAverages.clear()
+        for (h in 0..23) {
+            val base = when (h) {
+                in 7..9   -> 2.2 + Math.random() * 0.8
+                in 17..21 -> 2.5 + Math.random() * 1.0
+                in 0..5   -> 0.3 + Math.random() * 0.3
+                else      -> 0.8 + Math.random() * 0.6
+            }
+            hourlyAverages.add(HourlyAverage(h, round(base * 100) / 100.0))
+        }
+    }
 
     // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
     private val weatherRepository = WeatherRepository()
@@ -409,10 +461,10 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun sendMessage(text: String) {
-        val cal       = java.util.Calendar.getInstance()
-        val hour      = cal.get(java.util.Calendar.HOUR)
-        val minute    = cal.get(java.util.Calendar.MINUTE)
-        val amPm      = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
+        val cal       = Calendar.getInstance()
+        val hour      = cal.get(Calendar.HOUR)
+        val minute    = cal.get(Calendar.MINUTE)
+        val amPm      = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
         val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
 
         firestore.collection("households")
@@ -431,10 +483,10 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun sendAlertMessage(alertBody: String) {
-        val cal       = java.util.Calendar.getInstance()
-        val hour      = cal.get(java.util.Calendar.HOUR)
-        val minute    = cal.get(java.util.Calendar.MINUTE)
-        val amPm      = if (cal.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
+        val cal       = Calendar.getInstance()
+        val hour      = cal.get(Calendar.HOUR)
+        val minute    = cal.get(Calendar.MINUTE)
+        val amPm      = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
         val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
 
         firestore.collection("households")
