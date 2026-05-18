@@ -475,6 +475,26 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 contextTip   = result.tip
 
                 result.alertMessage?.let { alert -> sendAlertMessage(alert) }
+
+                val forecaster = EnergyForecaster()
+                val forecastInput = ForecastInput(
+                    energyKwh      = row.energyKwh.toFloat(),
+                    roomTempC      = row.roomTempC.toFloat(),
+                    occupancyCount = row.occupancyCount.toFloat(),
+                    tariffPerKwh   = row.tariffPerKwh.toFloat(),
+                    isWeekend      = if (row.isWeekend) 1f else 0f,
+                    dayOfWeek      = when (row.timeOfDay) {
+                        "Monday"    -> 0f
+                        "Tuesday"   -> 1f
+                        "Wednesday" -> 2f
+                        "Thursday"  -> 3f
+                        "Friday"    -> 4f
+                        "Saturday"  -> 5f
+                        else        -> 6f
+                    }
+                )
+                val predicted = forecaster.predict(forecastInput)
+                updateForecast(predicted.toDouble())
             }
         }
     }

@@ -65,11 +65,6 @@ class EnergyForecaster {
     }
 
     // ── Normalise input features using StandardScaler params ──────────────────
-    /**
-     * Applies StandardScaler normalisation to raw input features.
-     * Formula: (value - mean) / scale
-     * Matches the Python training preprocessing exactly.
-     */
     private fun normalise(input: ForecastInput): FloatArray {
         val raw = floatArrayOf(
             input.energyKwh,
@@ -82,5 +77,24 @@ class EnergyForecaster {
         return FloatArray(6) { i ->
             (raw[i] - SCALER_MEANS[i]) / SCALER_SCALES[i]
         }
+    }
+
+    // ── Run inference using linear regression ─────────────────────────────────
+    /**
+     * Predicts next-hour energy consumption in kWh.
+     * Uses pre-trained linear regression weights for on-device inference.
+     * No network connectivity required — fully on-device.
+     *
+     * @param input ForecastInput containing live sensor values
+     * @return predicted kWh clamped to range [0.0, 10.0]
+     */
+    fun predict(input: ForecastInput): Float {
+        val normalised = normalise(input)
+        var prediction = INTERCEPT
+        for (i in WEIGHTS.indices) {
+            prediction += WEIGHTS[i] * normalised[i]
+        }
+        // Clamp to reasonable energy range
+        return prediction.coerceIn(0.0f, 10.0f)
     }
 }
