@@ -36,8 +36,6 @@ data class HouseholdMember(
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
-    private val energyReadingDao = WattWiseDatabase.getDatabase(application).energyReadingDao()
-    private val energyReadingRepository = EnergyReadingRepository(energyReadingDao)
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
@@ -271,10 +269,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 }
             }
         }
-        viewModelScope.launch {
-            seedHistoricalDataIfNeeded()
-            loadHistoryForLastSevenDays()
-        }
     }
 
     fun addAppliance(appliance: Appliance) { viewModelScope.launch { dao.insert(appliance) } }
@@ -335,184 +329,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             it.name.contains(searchQuery, ignoreCase = true) ||
                     it.category.contains(searchQuery, ignoreCase = true)
         }
-
-    // ── Energy History (Room) ─────────────────────────────────────────────────
-
-
-    // State for history charts
-    var dailyTotals = mutableStateListOf<DailyTotal>()
-    var categoryBreakdown = mutableStateListOf<CategoryTotal>()
-    var selectedFromDate by mutableStateOf("")
-    var selectedToDate by mutableStateOf("")
-
-    var hourlyAverages = mutableStateListOf<HourlyAverage>()
-    // Hourly accumulator
-    private val hourlyAccumulator = mutableListOf<CsvSensorRow>()
-    private var hourlyKwhSum = 0.0
-    private var hourlyTempSum = 0.0
-    private var hourlyOccupancySum = 0
-    private var hourlyReadingCount = 0
-    private var readingsThisHour = 0
-    private val READINGS_PER_HOUR = 1200 // 3600 sec / 3 sec per reading
-
-
-    // ── Seed 30 days of historical data ──────────────────────────────────────
-    private suspend fun seedHistoricalDataIfNeeded() {
-        if (energyReadingRepository.getCount() > 0) return
-
-        val categories = listOf("Cooling", "Kitchen", "Laundry", "Lighting", "Heating")
-        val calendar = java.util.Calendar.getInstance()
-        val readings = mutableListOf<EnergyReading>()
-
-        for (dayOffset in 29 downTo 0) {
-            calendar.timeInMillis = System.currentTimeMillis()
-            calendar.add(java.util.Calendar.DAY_OF_YEAR, -dayOffset)
-            val date = String.format(
-                "%04d-%02d-%02d",
-                calendar.get(java.util.Calendar.YEAR),
-                calendar.get(java.util.Calendar.MONTH) + 1,
-                calendar.get(java.util.Calendar.DAY_OF_MONTH)
-            )
-            val isWeekendDay = calendar.get(java.util.Calendar.DAY_OF_WEEK) in
-                    listOf(java.util.Calendar.SATURDAY, java.util.Calendar.SUNDAY)
-
-            for (hour in 0..23) {
-                val tariffTier = when (hour) {
-                    in 7..22  -> if (hour in 7..9 || hour in 17..21) "Peak" else "Shoulder"
-                    else      -> "Off-Peak"
-                }
-                val tariff = when (tariffTier) {
-                    "Peak"     -> 0.22
-                    "Shoulder" -> 0.15
-                    else       -> 0.10
-                }
-
-                categories.forEach { category ->
-                    val baseKwh = when (category) {
-                        "Cooling"  -> if (isWeekendDay) 1.9 else 1.6
-                        "Kitchen"  -> if (hour in 7..9 || hour in 17..20) 1.4 else 0.3
-                        "Laundry"  -> if (hour in 8..11) 0.6 else 0.1
-                        "Lighting" -> if (hour in 6..8 || hour in 18..23) 0.15 else 0.02
-                        "Heating"  -> if (isWeekendDay) 0.8 else 0.5
-                        else       -> 0.2
-                    }
-                    val variation = (Math.random() * 0.3 - 0.15)
-                    val kwh = (baseKwh + variation).coerceAtLeast(0.01)
-
-                    readings.add(
-                        EnergyReading(
-                            date          = date,
-                            hour          = hour,
-                            category      = category,
-                            totalKwh      = kwh,
-                            tariffTier    = tariffTier,
-                            avgTempC      = 22.0 + Math.random() * 8,
-                            avgOccupancy  = if (isWeekendDay) 3 else 2,
-                            totalCost     = kwh * tariff
-                        )
-                    )
-                }
-            }
-        }
-        energyReadingRepository.insertAll(readings)
-    }
-
-    // ── Load last 7 days for charts ───────────────────────────────────────────
-    fun loadHistoryForLastSevenDays() {
-        val cal = java.util.Calendar.getInstance()
-        val toDate = String.format(
-            "%04d-%02d-%02d",
-            cal.get(java.util.Calendar.YEAR),
-            cal.get(java.util.Calendar.MONTH) + 1,
-            cal.get(java.util.Calendar.DAY_OF_MONTH)
-        )
-        cal.add(java.util.Calendar.DAY_OF_YEAR, -6)
-        val fromDate = String.format(
-            "%04d-%02d-%02d",
-            cal.get(java.util.Calendar.YEAR),
-            cal.get(java.util.Calendar.MONTH) + 1,
-            cal.get(java.util.Calendar.DAY_OF_MONTH)
-        )
-        selectedFromDate = fromDate
-        selectedToDate = toDate
-        loadHistoryForDateRange(fromDate, toDate)
-    }
-
-    fun loadHistoryForDateRange(fromDate: String, toDate: String) {
-        viewModelScope.launch {
-            energyReadingRepository.getDailyTotals(fromDate, toDate).collect { totals ->
-                dailyTotals.clear()
-                dailyTotals.addAll(totals)
-            }
-        }
-        viewModelScope.launch {
-            val breakdown = energyReadingRepository.getCategoryBreakdown(fromDate, toDate).first()
-            categoryBreakdown.clear()
-            categoryBreakdown.addAll(breakdown)
-        }
-
-        viewModelScope.launch {
-            energyReadingRepository.getHourlyAverages(fromDate, toDate).collect { averages ->
-                hourlyAverages.clear()
-                hourlyAverages.addAll(averages)
-            }
-        }
-    }
-
-    // ── Hourly accumulator ────────────────────────────────────────────────────
-// Called from startSimulator every 3 seconds
-// Saves hourly snapshot to Room when 1200 readings accumulated
-    fun accumulateHourlyReading(row: CsvSensorRow) {
-        hourlyKwhSum += row.energyKwh
-        hourlyTempSum += row.roomTempC
-        hourlyOccupancySum += row.occupancyCount
-        hourlyReadingCount++
-        readingsThisHour++
-
-        if (readingsThisHour >= READINGS_PER_HOUR) {
-            val cal = java.util.Calendar.getInstance()
-            val date = String.format(
-                "%04d-%02d-%02d",
-                cal.get(java.util.Calendar.YEAR),
-                cal.get(java.util.Calendar.MONTH) + 1,
-                cal.get(java.util.Calendar.DAY_OF_MONTH)
-            )
-            val category = mapApplianceToCategory(row.applianceName)
-
-            viewModelScope.launch {
-                energyReadingRepository.insert(
-                    EnergyReading(
-                        date         = date,
-                        hour         = cal.get(java.util.Calendar.HOUR_OF_DAY),
-                        category     = category,
-                        totalKwh     = hourlyKwhSum,
-                        tariffTier   = row.tariffTier,
-                        avgTempC     = hourlyTempSum / hourlyReadingCount,
-                        avgOccupancy = hourlyOccupancySum / hourlyReadingCount,
-                        totalCost    = hourlyKwhSum * row.tariffPerKwh
-                    )
-                )
-            }
-            // Reset accumulator
-            hourlyKwhSum = 0.0
-            hourlyTempSum = 0.0
-            hourlyOccupancySum = 0
-            hourlyReadingCount = 0
-            readingsThisHour = 0
-        }
-    }
-
-    private fun mapApplianceToCategory(applianceName: String): String {
-        return when (applianceName.lowercase()) {
-            "ac", "air_conditioner", "air conditioner" -> "Cooling"
-            "heater"                                    -> "Heating"
-            "washing_machine", "washing machine"        -> "Laundry"
-            "dishwasher", "oven", "microwave",
-            "fridge", "kitchen"                         -> "Kitchen"
-            "lights", "lighting"                        -> "Lighting"
-            else                                        -> "Other"
-        }
-    }
 
     // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
     private val weatherRepository = WeatherRepository()

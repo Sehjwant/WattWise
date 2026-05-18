@@ -44,6 +44,15 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+        }
+    }
+    androidResources {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -77,4 +86,4 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
     implementation("com.google.firebase:firebase-firestore:25.1.4")
     implementation(libs.work.runtime)
-}
+    }
