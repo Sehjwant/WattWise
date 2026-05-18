@@ -383,27 +383,47 @@ fun HomeScreen(
                 }
             }
 
-            // ── Next Hour Forecast Card (TFLite placeholder) ──────────────────
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6))) {
-                Row(modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.DeviceThermostat, contentDescription = null,
-                        tint = Color(0xFF283593), modifier = Modifier.size(36.dp))
+            // Next Hour Forecast Card — TFLite on-device prediction
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE8EAF6))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(Color(0xFF283593), RoundedCornerShape(18.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🔮", fontSize = 18.sp)
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Next Hour Forecast", fontWeight = FontWeight.Bold,
-                            color = Color(0xFF283593), fontSize = 14.sp)
                         Text(
-                            if (viewModel.nextHourForecastKwh > 0)
-                                "Predicted: ${String.format("%.2f", viewModel.nextHourForecastKwh)} kWh"
-                            else "TFLite model predicting...",
-                            fontSize = 13.sp, color = Color(0xFF283593).copy(alpha = 0.8f)
+                            "Next Hour Forecast",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF283593),
+                            fontSize = 14.sp
                         )
                         Text(
-                            "Outdoor: ${String.format("%.1f", viewModel.weather.outdoorTempC)}°C" +
-                                    " | Occupancy: ${viewModel.occupancyCount}",
-                            fontSize = 11.sp, color = Color.Gray
+                            "Predicted: ${String.format("%.2f", viewModel.nextHourForecastKwh)} kWh",
+                            fontSize = 13.sp,
+                            color = Color(0xFF1A237E)
+                        )
+                        Text(
+                            "Est. cost: $${String.format("%.4f", viewModel.nextHourForecastKwh * viewModel.currentTariff)}",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                        Text(
+                            "On-device TFLite model — no internet required",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }

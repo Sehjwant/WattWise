@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.fit5046.wattwise" />
+                  <option name="mobileSdkAppId" value="1:217126235506:android:3c64a433bcfa0cad4541eb" />
+                  <option name="projectId" value="wattwise-5c9e8" />
+                  <option name="projectNumber" value="217126235506" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
