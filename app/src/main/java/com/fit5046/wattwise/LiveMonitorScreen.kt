@@ -119,14 +119,14 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                 Text("Tariff", modifier = Modifier.weight(1.2f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
-                Text("Temp", modifier = Modifier.weight(1f),
+                Text("Room°C", modifier = Modifier.weight(1f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                 Text("Occ", modifier = Modifier.weight(0.7f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
             }
             Spacer(modifier = Modifier.height(4.dp))
 
-            // LazyColumn — real-time SmartMeterSimulator feed (skeleton data)
+            // LazyColumn - real-time SmartMeterSimulator feed (skeleton data)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(viewModel.liveReadings) { reading ->
                     SensorReadingCard(reading = reading)

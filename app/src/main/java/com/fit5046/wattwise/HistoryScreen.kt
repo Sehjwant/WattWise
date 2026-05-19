@@ -148,7 +148,7 @@ private fun LegendItem(color: Color, label: String) {
     }
 }
 
-// ── Tab 1 — Daily Usage (Bar Chart) connected to Room ─────────────────────────
+// ── Tab 1 - Daily Usage (Bar Chart) connected to Room ─────────────────────────
 @Composable
 private fun DailyUsageTab(viewModel: WattWiseViewModel) {
     val dailyTotals = viewModel.dailyTotals
@@ -234,7 +234,7 @@ private fun DailyUsageTab(viewModel: WattWiseViewModel) {
     )
 }
 
-// ── Tab 2 — Category Breakdown connected to Room ──────────────────────────────
+// ── Tab 2 - Category Breakdown connected to Room ──────────────────────────────
 @Composable
 private fun BreakdownTab(viewModel: WattWiseViewModel) {
     val breakdown      = viewModel.categoryBreakdown
@@ -307,7 +307,7 @@ private fun BreakdownTab(viewModel: WattWiseViewModel) {
 }
 
 
-// ── Tab 3 — Carbon Emissions connected to Room ────────────────────────────────
+// ── Tab 3 - Carbon Emissions connected to Room ────────────────────────────────
 @Composable
 private fun CarbonTab(viewModel: WattWiseViewModel) {
     val dailyTotals = viewModel.dailyTotals
@@ -395,7 +395,7 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
 }
 
 
-// ── Tab 4 — Trends connected to Room ─────────────────────────────────────────
+// ── Tab 4 - Trends connected to Room ─────────────────────────────────────────
 @Composable
 private fun TrendsTab(viewModel: WattWiseViewModel) {
     val hourlyAverages = viewModel.hourlyAverages
