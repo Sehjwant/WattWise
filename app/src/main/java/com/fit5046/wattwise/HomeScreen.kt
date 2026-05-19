@@ -456,7 +456,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
-}
+
 
 @Composable
 private fun WeatherDetailRow(label: String, value: String) {
