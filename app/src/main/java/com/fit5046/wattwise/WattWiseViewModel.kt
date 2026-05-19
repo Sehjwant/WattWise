@@ -105,9 +105,9 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
-                    isLoggedIn = true
-                    loadHouseholdMembers()
-                    listenToMessages()
+                    // Sign out after creating account so user must log in
+                    auth.signOut()
+                    isLoggedIn = false
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -220,7 +220,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Profile / Settings ────────────────────────────────────────────────────
     var fullName             by mutableStateOf("")
     var suburb               by mutableStateOf("")
-    var householdSize        by mutableStateOf("2")
+
     var budgetGoal           by mutableStateOf("20.0")
     var billingType          by mutableStateOf("Time-of-Use")
     var offPeakHours         by mutableStateOf("11:00 PM")
