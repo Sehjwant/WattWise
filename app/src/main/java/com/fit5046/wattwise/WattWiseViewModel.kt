@@ -461,6 +461,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                                 type       = resolvedType
                             )
                         )
+                        unreadAlertCount++
                     }
                 }
             }

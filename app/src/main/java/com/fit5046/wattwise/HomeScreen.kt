@@ -86,7 +86,7 @@ fun HomeScreen(
     }
 
     val co2Today = viewModel.dailyCumulativeKwh * 0.79
-    val alertCount = viewModel.messages.count { it.type == MessageType.ALERT }
+    val alertCount = viewModel.messages.unreadAlertCount
 
     Scaffold(
         topBar = {
