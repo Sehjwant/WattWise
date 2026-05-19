@@ -164,13 +164,37 @@ fun SensorReadingCard(reading: SensorReading) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Appliance name
-                Text(
-                    text = formatApplianceName(reading.applianceName),
+                // Appliance name with category color dot
+                Row(
                     modifier = Modifier.weight(2f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF212121)
-                )
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                when (reading.applianceName.lowercase()) {
+                                    "ac"                          -> Color(0xFF1565C0) // Cooling
+                                    "heater", "water_heater"      -> Color(0xFFB71C1C) // Heating
+                                    "washing_machine"             -> Color(0xFF6A1B9A) // Laundry
+                                    "dishwasher", "oven",
+                                    "microwave", "fridge"         -> Color(0xFFE65100) // Kitchen
+                                    "lights"                      -> Color(0xFFF9A825) // Lighting
+                                    "tv", "computer",
+                                    "phone_charger"               -> Color(0xFF00695C) // Electronics
+                                    else                          -> Color(0xFF455A64)
+                                },
+                                CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = formatApplianceName(reading.applianceName),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF212121)
+                    )
+                }
                 // Energy kWh
                 Text(
                     text = String.format("%.2f", reading.energyKwh),
@@ -196,6 +220,7 @@ fun SensorReadingCard(reading: SensorReading) {
                         color = tariffColor
                     )
                 }
+                Spacer(modifier = Modifier.width(4.dp))
                 // Room temperature
                 Text(
                     text = "${reading.roomTempC}°",
