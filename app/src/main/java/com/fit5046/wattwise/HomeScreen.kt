@@ -86,7 +86,7 @@ fun HomeScreen(
     }
 
     val co2Today = viewModel.dailyCumulativeKwh * 0.79
-    val alertCount = viewModel.messages.unreadAlertCount
+    val alertCount = viewModel.unreadAlertCount
 
     Scaffold(
         topBar = {
@@ -449,13 +449,13 @@ fun HomeScreen(
 //                            Icon(Icons.Default.Forum, contentDescription = "Open Household Chat",
 //                                tint = Color(0xFF2E7D32), modifier = Modifier.size(24.dp))
 //                        }
-                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
 
 
 @Composable
