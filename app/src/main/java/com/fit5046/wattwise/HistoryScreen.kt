@@ -160,7 +160,7 @@ private fun DailyUsageTab(viewModel: WattWiseViewModel) {
         StatItem("Period Total", String.format("%.1f kWh", totalKwh), Color(0xFF1B5E20)),
         StatItem("Daily Avg", String.format("%.1f kWh", avgKwh), Color(0xFF388E3C)),
         StatItem("Peak Day", peakDay?.let {
-            "${it.date.takeLast(5)} ${String.format("%.1f", it.totalKwh)}"
+            "${it.date.takeLast(5)} ${String.format("%.1f", it.totalKwh)} kWh"
         } ?: "N/A", Color(0xFFB71C1C))
     )
 
@@ -414,10 +414,10 @@ private fun TrendsTab(viewModel: WattWiseViewModel) {
     SummaryStatsRow(
         StatItem("Period Total", String.format("%.0f kWh", monthTotal), Color(0xFF0D47A1)),
         StatItem("Peak Hour", peakHour?.let {
-            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)}"
+            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)} kWh"
         } ?: "N/A", Color(0xFFB71C1C)),
         StatItem("Low Hour", offPeakHour?.let {
-            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)}"
+            "${it.hour}:00 — ${String.format("%.1f", it.totalKwh)} kWh"
         } ?: "N/A", Color(0xFF2E7D32))
     )
 
