@@ -136,6 +136,12 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
     }
 }
 
+private fun formatApplianceName(raw: String): String = raw
+    .split("_")
+    .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    .replace("Ac", "Air Conditioner")
+    .replace("Tv", "Television")
+
 @Composable
 fun SensorReadingCard(reading: SensorReading) {
     val tariffColor = when (reading.tariffTier) {
@@ -159,7 +165,7 @@ fun SensorReadingCard(reading: SensorReading) {
             ) {
                 // Appliance name
                 Text(
-                    text = reading.applianceName,
+                    text = formatApplianceName(reading.applianceName),
                     modifier = Modifier.weight(2f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
