@@ -176,12 +176,16 @@ private fun DailyUsageTab(viewModel: WattWiseViewModel) {
         } else {
             val maxVal = dailyTotals.maxOf { it.totalKwh }.toFloat()
             Row(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState())
-                    .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = if (dailyTotals.size > 7)
+                    Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 4.dp)
+                else
+                    Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                horizontalArrangement = if (dailyTotals.size > 7)
+                    Arrangement.spacedBy(8.dp)
+                else
+                    Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
-            ) {
+            )  {
                 dailyTotals.forEach { daily ->
                     val value  = daily.totalKwh.toFloat()
                     val label  = daily.date.takeLast(5)
@@ -311,6 +315,11 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
     val totalCo2    = co2Data.sumOf { it.second.toDouble() }
     val avgCo2      = if (co2Data.isNotEmpty()) totalCo2 / co2Data.size else 0.0
 
+    // Dynamic thresholds based on actual data
+    val avgCo2Float   = avgCo2.toFloat()
+    val lowThreshold  = avgCo2Float * 0.85f
+    val highThreshold = avgCo2Float * 1.15f
+
     SummaryStatsRow(
         StatItem("Period CO2", String.format("%.1f kg", totalCo2), Color(0xFF2E7D32)),
         StatItem("Daily Avg", String.format("%.1f kg", avgCo2), Color(0xFF388E3C)),
@@ -329,12 +338,16 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
         } else {
             val maxCo2 = co2Data.maxOf { it.second }
             Row(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState())
-                    .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = if (co2Data.size > 7)
+                    Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 4.dp)
+                else
+                    Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                horizontalArrangement = if (co2Data.size > 7)
+                    Arrangement.spacedBy(8.dp)
+                else
+                    Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.Bottom
-            ) {
+            )  {
                 co2Data.forEach { (day, co2) ->
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -349,9 +362,9 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
                                 .height(((co2 / maxCo2) * 110).dp.coerceAtLeast(4.dp))
                                 .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
                                 .background(when {
-                                    co2 > 15f -> Color(0xFF6A1B9A)
-                                    co2 > 12f -> Color(0xFFAB47BC)
-                                    else      -> Color(0xFFCE93D8)
+                                    co2 > highThreshold -> Color(0xFF6A1B9A)
+                                    co2 > lowThreshold  -> Color(0xFFAB47BC)
+                                    else                -> Color(0xFFCE93D8)
                                 })
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -361,9 +374,12 @@ private fun CarbonTab(viewModel: WattWiseViewModel) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LegendItem(Color(0xFFCE93D8), "< 12 kg")
-                LegendItem(Color(0xFFAB47BC), "12-15 kg")
-                LegendItem(Color(0xFF6A1B9A), "> 15 kg")
+                LegendItem(Color(0xFFCE93D8),
+                    "< ${String.format("%.0f", lowThreshold)} kg")
+                LegendItem(Color(0xFFAB47BC),
+                    "${String.format("%.0f", lowThreshold)}-${String.format("%.0f", highThreshold)} kg")
+                LegendItem(Color(0xFF6A1B9A),
+                    "> ${String.format("%.0f", highThreshold)} kg")
             }
         }
     }
