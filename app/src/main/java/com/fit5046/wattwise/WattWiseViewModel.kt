@@ -286,6 +286,21 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var dailyCumulativeKwh by mutableStateOf(12.4)
     var contextState       by mutableStateOf("Normal")
     var contextTip         by mutableStateOf("Your energy usage looks great today!")
+
+    // Budget alert flags — ensures each alert fires only once per day
+    var has80PercentAlertFired  by mutableStateOf(false)
+
+    var has100PercentAlertFired by mutableStateOf(false)
+
+    var showBudgetPopup         by mutableStateOf<String?>(null)
+
+    // Resets daily alert flags — called at midnight or when budget goal changes
+    fun resetDailyAlerts() {
+        has80PercentAlertFired = false
+        has100PercentAlertFired = false
+        dailyCumulativeKwh = 0.0
+    }
+
     var isWeekend          by mutableStateOf(false)
     var isHoliday          by mutableStateOf(false)
 
@@ -528,7 +543,19 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 contextState = result.stateLabel
                 contextTip   = result.tip
 
-                result.alertMessage?.let { alert -> sendAlertMessage(alert) }
+                // Only send budget alerts ONCE per threshold
+                if (budgetProgress >= 1.0f && !has100PercentAlertFired) {
+                    has100PercentAlertFired = true
+                    val alertMsg = "Budget Exceeded: You have used ${"%.1f".format(dailyCumulativeKwh)} / ${budgetGoal} kWh (100%). Avoid running high-wattage appliances."
+                    sendAlertMessage(alertMsg)
+                    showBudgetPopup = alertMsg
+                } else if (budgetProgress >= 0.8f && !has80PercentAlertFired) {
+                    has80PercentAlertFired = true
+                    val alertMsg = "80% Budget Used: You have used ${"%.1f".format(dailyCumulativeKwh)} / ${budgetGoal} kWh. Shift remaining appliances to off-peak hours."
+                    sendAlertMessage(alertMsg)
+                    showBudgetPopup = alertMsg
+                }
+                accumulateHourlyReading(row)
             }
         }
     }

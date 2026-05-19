@@ -31,6 +31,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.fit5046.wattwise.ui.theme.WattWiseTheme
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -93,6 +95,32 @@ fun WattWiseApp() {
             context       = context,
             cumulativeKwh = viewModel.dailyCumulativeKwh,
             budgetGoal    = viewModel.budgetGoal.toDoubleOrNull() ?: 20.0
+        )
+    }
+
+    // Budget alert popup — shows once when threshold is crossed
+    if (viewModel.showBudgetPopup != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.showBudgetPopup = null },
+            title = {
+                Text(
+                    if (viewModel.budgetProgress >= 1.0f) "Budget Exceeded!"
+                    else "Budget Warning!",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = if (viewModel.budgetProgress >= 1.0f) Color(0xFFB71C1C)
+                    else Color(0xFFE65100)
+                )
+            },
+            text = {
+                Text(viewModel.showBudgetPopup ?: "")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.showBudgetPopup = null }
+                ) {
+                    Text("OK", color = Color(0xFF2E7D32))
+                }
+            }
         )
     }
 

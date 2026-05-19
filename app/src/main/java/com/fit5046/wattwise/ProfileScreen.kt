@@ -392,6 +392,8 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 onValueChange = { input ->
                     if (viewModel.isOwner) {
                         viewModel.budgetGoal = input
+                        viewModel.has80PercentAlertFired = false
+                        viewModel.has100PercentAlertFired = false
                         val v = input.toFloatOrNull()
                         budgetError = when {
                             input.isEmpty() -> "Budget is required"
