@@ -419,12 +419,6 @@ fun HomeScreen(
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
-                        Text(
-                            "On-device TFLite model — no internet required",
-                            fontSize = 10.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
                     }
                 }
             }
