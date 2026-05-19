@@ -49,7 +49,8 @@ fun RegisterScreen(
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var selectedRole by remember { mutableStateOf("Owner") }
     var householdIdInput by remember { mutableStateOf("") }
-
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     // ── Google Sign-In setup ──────────────────────────────────────────────────
@@ -74,6 +75,33 @@ fun RegisterScreen(
                 viewModel.authError = "Google sign-in failed: ${e.message}"
             }
         }
+    }
+
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    "Account Created!",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+            },
+            text = {
+                Text("Your WattWise account has been created successfully. Please sign in with your credentials.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSuccessDialog = false
+                        viewModel.authError = null
+                        onBackToLogin()
+                    }
+                ) {
+                    Text("Go to Sign In", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     Box(
@@ -145,11 +173,20 @@ fun RegisterScreen(
 
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = {
+                            email = it
+                            viewModel.authError = null
+                            emailError = if (it.isNotEmpty() && !it.contains("@"))
+                                "Please enter a valid email address" else null
+                        },
                         label = { Text("Email Address") },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFF2E7D32)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
+                        isError = emailError != null,
+                        supportingText = {
+                            if (emailError != null) Text(emailError!!, color = Color.Red, fontSize = 11.sp)
+                        },
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2E7D32), focusedLabelColor = Color(0xFF2E7D32))
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -257,7 +294,7 @@ fun RegisterScreen(
                                     password = password,
                                     role = selectedRole,
                                     householdIdInput = householdIdInput,
-                                    onSuccess = onRegisterSuccess
+                                    onSuccess = { showSuccessDialog = true }
                                 )
                             }
                         },
