@@ -321,7 +321,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Occupancy", fontSize = 12.sp, color = Color.Gray)
                         Text(
-                            "${viewModel.occupancyCount} ${if (viewModel.occupancyCount == 1) "person" else "persons"}",
+                            "${viewModel.occupancyCount} ${if (viewModel.occupancyCount == 1) "person" else "people"}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1565C0)
