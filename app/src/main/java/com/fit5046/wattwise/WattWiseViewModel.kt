@@ -49,6 +49,12 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var householdId   by mutableStateOf("HH-20261001")
     var authError     by mutableStateOf<String?>(null)
     var isAuthLoading by mutableStateOf(false)
+    var unreadAlertCount by mutableStateOf(0)
+        private set
+
+    fun markAlertsAsRead() {
+        unreadAlertCount = 0
+    }
 
     fun logout() {
         auth.signOut()
