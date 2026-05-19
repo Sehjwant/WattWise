@@ -555,7 +555,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     sendAlertMessage(alertMsg)
                     showBudgetPopup = alertMsg
                 }
-                accumulateHourlyReading(row)
+
             }
         }
     }
