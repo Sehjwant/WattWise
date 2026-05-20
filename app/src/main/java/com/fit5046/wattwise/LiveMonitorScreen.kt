@@ -119,14 +119,14 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                 Text("Tariff", modifier = Modifier.weight(1.2f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
-                Text("Temp", modifier = Modifier.weight(1f),
+                Text("Room°C", modifier = Modifier.weight(1f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
                 Text("Occ", modifier = Modifier.weight(0.7f),
                     fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B5E20))
             }
             Spacer(modifier = Modifier.height(4.dp))
 
-            // LazyColumn — real-time SmartMeterSimulator feed (skeleton data)
+            // LazyColumn - real-time SmartMeterSimulator feed (skeleton data)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(viewModel.liveReadings) { reading ->
                     SensorReadingCard(reading = reading)
@@ -135,6 +135,12 @@ fun LiveMonitorScreen(viewModel: WattWiseViewModel) {
         }
     }
 }
+
+private fun formatApplianceName(raw: String): String = raw
+    .split("_")
+    .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    .replace("Ac", "Air Conditioner")
+    .replace("Tv", "Television")
 
 @Composable
 fun SensorReadingCard(reading: SensorReading) {
@@ -158,13 +164,37 @@ fun SensorReadingCard(reading: SensorReading) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Appliance name
-                Text(
-                    text = reading.applianceName,
+                // Appliance name with category color dot
+                Row(
                     modifier = Modifier.weight(2f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF212121)
-                )
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                when (reading.applianceName.lowercase()) {
+                                    "ac"                          -> Color(0xFF1565C0) // Cooling
+                                    "heater", "water_heater"      -> Color(0xFFB71C1C) // Heating
+                                    "washing_machine"             -> Color(0xFF6A1B9A) // Laundry
+                                    "dishwasher", "oven",
+                                    "microwave", "fridge"         -> Color(0xFFE65100) // Kitchen
+                                    "lights"                      -> Color(0xFFF9A825) // Lighting
+                                    "tv", "computer",
+                                    "phone_charger"               -> Color(0xFF00695C) // Electronics
+                                    else                          -> Color(0xFF455A64)
+                                },
+                                CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = formatApplianceName(reading.applianceName),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF212121)
+                    )
+                }
                 // Energy kWh
                 Text(
                     text = String.format("%.2f", reading.energyKwh),
@@ -190,6 +220,7 @@ fun SensorReadingCard(reading: SensorReading) {
                         color = tariffColor
                     )
                 }
+                Spacer(modifier = Modifier.width(4.dp))
                 // Room temperature
                 Text(
                     text = "${reading.roomTempC}°",
