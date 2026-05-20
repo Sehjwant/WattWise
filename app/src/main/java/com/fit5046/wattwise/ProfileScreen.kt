@@ -83,6 +83,17 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     // Confirmation dialog for sign out
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    // Profile completion calculation
+    val completionFields = listOf(
+        viewModel.fullName.isNotBlank(),
+        viewModel.suburb.isNotBlank(),
+        viewModel.budgetGoal.isNotBlank(),
+        viewModel.billingType.isNotBlank(),
+        viewModel.offPeakHours.isNotBlank()
+    )
+    val completionCount = completionFields.count { it }
+    val completionFraction = completionCount / completionFields.size.toFloat()
+
     // Confirmation dialog for removing a member
     if (showRemoveDialog) {
         androidx.compose.material3.AlertDialog(
