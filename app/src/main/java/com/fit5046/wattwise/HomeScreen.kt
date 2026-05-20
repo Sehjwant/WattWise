@@ -430,25 +430,10 @@ fun HomeScreen(
             // ── Household ID  ──────────────────────────────────
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))) {
-                Row(modifier = Modifier.padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text("Household ID", color = Color.Gray, fontSize = 12.sp)
-                        Text(viewModel.householdId, fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1B5E20), fontSize = 14.sp)
-                    }
-//                    IconButton(onClick = onNavigateToMessaging) {
-//                        BadgedBox(badge = {
-//                            if (alertCount > 0) {
-//                                Badge(containerColor = Color(0xFFE53935)) {
-//                                    Text("$alertCount", color = Color.White, fontSize = 9.sp)
-//                                }
-//                            }
-//                        }) {
-//                            Icon(Icons.Default.Forum, contentDescription = "Open Household Chat",
-//                                tint = Color(0xFF2E7D32), modifier = Modifier.size(24.dp))
-//                        }
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Household ID", color = Color.Gray, fontSize = 12.sp)
+                    Text(viewModel.householdId, fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B5E20), fontSize = 14.sp)
                 }
             }
 

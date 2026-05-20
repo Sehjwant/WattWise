@@ -15,11 +15,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import android.util.Log
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import kotlin.math.round
 import kotlinx.coroutines.flow.first
 
 data class SensorReading(
@@ -39,6 +35,7 @@ data class HouseholdMember(
 
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
+    var phoneNumber by mutableStateOf("")
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
     private val energyReadingDao = WattWiseDatabase.getDatabase(application).energyReadingDao()
     private val energyReadingRepository = EnergyReadingRepository(energyReadingDao)
@@ -102,7 +99,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Email/Password Registration ───────────────────────────────────────────
     fun registerWithEmail(
         name: String, email: String, password: String,
-        role: String, householdIdInput: String, onSuccess: () -> Unit
+        role: String, householdIdInput: String, onSuccess: () -> Unit, suburb: String
     ) {
         isAuthLoading = true
         authError = null

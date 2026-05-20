@@ -80,10 +80,15 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     var memberToRemoveName by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isEditingProfile by remember { mutableStateOf(false) }
+    var showDeleteForm by remember { mutableStateOf(false) }
+    var deleteReason by remember { mutableStateOf("") }
+    var deleteOtherText by remember { mutableStateOf("") }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Profile completion calculation
     val completionFields = listOf(
         viewModel.fullName.isNotBlank(),
+        viewModel.phoneNumber.isNotBlank(),
         viewModel.suburb.isNotBlank(),
         viewModel.budgetGoal.isNotBlank(),
         viewModel.billingType.isNotBlank(),
@@ -259,37 +264,43 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
             // SECTION 1: Account Information
             SectionHeader(title = "Account Information")
 
-            if (!isEditingProfile) {
-                // Display mode
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()) {
-                            Text("Name", fontSize = 12.sp, color = Color.Gray)
-                            Text(viewModel.fullName.ifBlank { "Not set" },
-                                fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        }
-                        HorizontalDivider(color = Color(0xFFEEEEEE))
-                        Row(horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()) {
-                            Text("Suburb", fontSize = 12.sp, color = Color.Gray)
-                            Text(viewModel.suburb.ifBlank { "Not set" },
-                                fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        }
-                        HorizontalDivider(color = Color(0xFFEEEEEE))
-                        Row(horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()) {
-                            Text("Household ID", fontSize = 12.sp, color = Color.Gray)
-                            Text(viewModel.householdId, fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium, color = Color(0xFF1B5E20))
-                        }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+            ) {
+                Column(modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text("Name", fontSize = 12.sp, color = Color.Gray)
+                        Text(viewModel.fullName.ifBlank { "Not set" },
+                            fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    Row(horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text("Phone", fontSize = 12.sp, color = Color.Gray)
+                        Text(viewModel.phoneNumber.ifBlank { "Not set" },
+                            fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    Row(horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text("Suburb", fontSize = 12.sp, color = Color.Gray)
+                        Text(viewModel.suburb.ifBlank { "Not set" },
+                            fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
+                    Row(horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text("Household ID", fontSize = 12.sp, color = Color.Gray)
+                        Text(viewModel.householdId, fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium, color = Color(0xFF1B5E20))
                     }
                 }
+            }
+            if (!isEditingProfile) {
                 Button(
                     onClick = { isEditingProfile = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -319,60 +330,16 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                         focusedLabelColor = Color(0xFF2E7D32)
                     )
                 )
-                if (viewModel.isOwner) {
-                    OutlinedTextField(
-                        value = viewModel.suburb,
-                        onValueChange = {
-                            viewModel.suburb = it
-                            suburbError = if (it.trim().isEmpty()) "Suburb cannot be empty" else null
-                        },
-                        label = { Text("Suburb") },
-                        placeholder = { Text("e.g. Clayton, VIC") },
-                        isError = suburbError != null,
-                        supportingText = {
-                            if (suburbError != null)
-                                Text(suburbError!!, color = MaterialTheme.colorScheme.error)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF2E7D32),
-                            focusedLabelColor = Color(0xFF2E7D32)
-                        )
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = viewModel.suburb,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Suburb") },
-                        supportingText = {
-                            Text("Only the Household Owner can change the suburb",
-                                color = Color.Gray, fontSize = 11.sp)
-                        },
-                        trailingIcon = {
-                            Icon(Icons.Default.Lock, contentDescription = "Locked",
-                                tint = Color.Gray, modifier = Modifier.size(18.dp))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
-                        )
-                    )
-                }
                 OutlinedTextField(
-                    value = viewModel.householdId,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Household ID") },
-                    trailingIcon = {
-                        Icon(Icons.Default.Lock, contentDescription = "Read only",
-                            tint = Color.Gray, modifier = Modifier.size(18.dp))
-                    },
+                    value = viewModel.phoneNumber,
+                    onValueChange = { viewModel.phoneNumber = it },
+                    label = { Text("Phone Number") },
+                    placeholder = { Text("e.g. 0412 345 678") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Gray.copy(alpha = 0.5f),
-                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                        focusedBorderColor = Color(0xFF2E7D32),
+                        focusedLabelColor = Color(0xFF2E7D32)
                     )
                 )
                 // Save/Cancel buttons
@@ -668,6 +635,106 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB71C1C))
             ) {
                 Text("Sign Out", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+// Delete account hyperlink
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center) {
+                TextButton(onClick = { showDeleteForm = !showDeleteForm }) {
+                    Text(
+                        "Delete my account",
+                        fontSize = 12.sp,
+                        color = Color(0xFFB71C1C).copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+            }
+
+// Delete form — expands inline when tapped
+            if (showDeleteForm) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                        Text("Why are you leaving?",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFB71C1C),
+                            fontSize = 14.sp)
+
+                        val reasons = listOf(
+                            "I no longer need this app",
+                            "I have privacy concerns",
+                            "The app is not working correctly",
+                            "Other"
+                        )
+                        reasons.forEach { reason ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = deleteReason == reason,
+                                    onClick = { deleteReason = reason },
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = Color(0xFFB71C1C)
+                                    )
+                                )
+                                Text(reason, fontSize = 13.sp)
+                            }
+                        }
+
+                        if (deleteReason == "Other") {
+                            OutlinedTextField(
+                                value = deleteOtherText,
+                                onValueChange = { deleteOtherText = it },
+                                label = { Text("Please specify") },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFB71C1C),
+                                    focusedLabelColor = Color(0xFFB71C1C)
+                                )
+                            )
+                        }
+
+                        if (deleteReason.isNotBlank()) {
+                            HorizontalDivider(color = Color(0xFFB71C1C).copy(alpha = 0.3f))
+                            Text("Are you sure you want to permanently delete your account?",
+                                fontSize = 13.sp, color = Color(0xFF5D4037))
+
+                            Row(modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        showDeleteForm = false
+                                        deleteReason = ""
+                                        deleteOtherText = ""
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp, Color(0xFFB71C1C)
+                                    )
+                                ) {
+                                    Text("No, keep it", color = Color(0xFFB71C1C), fontSize = 13.sp)
+                                }
+                                Button(
+                                    onClick = {
+                                        // TODO: wire to Firebase delete in A4
+                                        viewModel.logout()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFB71C1C)
+                                    )
+                                ) {
+                                    Text("Yes, delete", fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
