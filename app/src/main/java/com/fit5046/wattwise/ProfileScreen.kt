@@ -94,6 +94,30 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     val completionCount = completionFields.count { it }
     val completionFraction = completionCount / completionFields.size.toFloat()
 
+    // Profile Avatar
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(78.dp)
+                .background(
+                    if (viewModel.isOwner) Color(0xFF1B5E20) else Color(0xFF1565C0),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = viewModel.fullName.firstOrNull()?.uppercase() ?: "?",
+                color = Color.White,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(4.dp))
+
     // Confirmation dialog for removing a member
     if (showRemoveDialog) {
         androidx.compose.material3.AlertDialog(
