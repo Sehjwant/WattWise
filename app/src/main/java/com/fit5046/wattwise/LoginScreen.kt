@@ -53,8 +53,6 @@ fun LoginScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var showRegister by remember { mutableStateOf(false) }
-    var showGoogleWelcome by remember { mutableStateOf(false) }
-    var googleUserName by remember { mutableStateOf("") }
 
     val context = LocalContext.current
 
@@ -75,11 +73,7 @@ fun LoginScreen(
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
                 val account = task.getResult(ApiException::class.java)!!
-                val displayName = account.displayName ?: "User"
-                viewModel.firebaseAuthWithGoogle(account.idToken!!) {
-                    googleUserName = displayName
-                    showGoogleWelcome = true
-                }
+                viewModel.firebaseAuthWithGoogle(account.idToken!!, onLoginSuccess)
             } catch (e: ApiException) {
                 Log.w("GoogleSignIn", "Google sign in failed", e)
                 viewModel.authError = "Google sign-in failed: ${e.message}"
@@ -88,31 +82,6 @@ fun LoginScreen(
     }
 
     if (showRegister) {
-        if (showGoogleWelcome) {
-            AlertDialog(
-                onDismissRequest = { },
-                title = {
-                    Text(
-                        "Welcome to WattWise!",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
-                    )
-                },
-                text = {
-                    Text("Signed in as $googleUserName. Your household dashboard is ready.")
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showGoogleWelcome = false
-                            onLoginSuccess()
-                        }
-                    ) {
-                        Text("Continue", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                    }
-                }
-            )
-        }
         RegisterScreen(
             onRegisterSuccess = {
                 showRegister = false

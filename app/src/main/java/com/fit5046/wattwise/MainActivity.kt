@@ -97,6 +97,52 @@ fun WattWiseApp() {
             budgetGoal    = viewModel.budgetGoal.toDoubleOrNull() ?: 20.0
         )
     }
+    // Google Sign-In welcome/registration dialog
+    if (viewModel.googleSignInType == "new") {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    "Account Registered!",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+            },
+            text = {
+                Text("Welcome ${viewModel.googleDisplayName}! Your Google account has been registered with WattWise. Your household dashboard is ready.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.googleSignInType = null }
+                ) {
+                    Text("Continue", color = Color(0xFF2E7D32), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (viewModel.googleSignInType == "existing") {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    "Welcome Back!",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+            },
+            text = {
+                Text("Signed in as ${viewModel.googleDisplayName}. Your household dashboard is ready.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.googleSignInType = null }
+                ) {
+                    Text("Continue", color = Color(0xFF2E7D32), fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     // Budget alert popup — shows once when threshold is crossed
     if (viewModel.showBudgetPopup != null) {
