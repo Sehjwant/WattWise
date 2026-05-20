@@ -20,8 +20,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.round
+import kotlinx.coroutines.flow.first
 
-// ── Sensor / Messaging data classes ──────────────────────────────────────────
 data class SensorReading(
     val applianceName: String,
     val energyKwh: Double,
@@ -40,8 +40,13 @@ data class HouseholdMember(
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dao = WattWiseDatabase.getDatabase(application).applianceDao()
+    private val energyReadingDao = WattWiseDatabase.getDatabase(application).energyReadingDao()
+    private val energyReadingRepository = EnergyReadingRepository(energyReadingDao)
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    // ── TFLite on-device forecaster ───────────────────────────────────────────
+    private val forecaster = EnergyForecaster(application)
 
     // ── Auth / User ───────────────────────────────────────────────────────────
     var isLoggedIn    by mutableStateOf(false)
@@ -111,9 +116,9 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId)
-                    isLoggedIn = true
-                    loadHouseholdMembers()
-                    listenToMessages()
+                    // Sign out after creating account so user must log in
+                    auth.signOut()
+                    isLoggedIn = false
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -226,7 +231,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Profile / Settings ────────────────────────────────────────────────────
     var fullName             by mutableStateOf("")
     var suburb               by mutableStateOf("")
-    var householdSize        by mutableStateOf("2")
+
     var budgetGoal           by mutableStateOf("20.0")
     var billingType          by mutableStateOf("Time-of-Use")
     var offPeakHours         by mutableStateOf("11:00 PM")
@@ -273,8 +278,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     appliances.clear()
                     appliances.addAll(list)
                 }
-                loadHistoryForLastSevenDays()
             }
+        }
+        viewModelScope.launch {
+            seedHistoricalDataIfNeeded()
+            loadHistoryForLastSevenDays()
         }
     }
 
@@ -293,22 +301,18 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var contextState       by mutableStateOf("Normal")
     var contextTip         by mutableStateOf("Your energy usage looks great today!")
 
-    // Budget alert flags — ensures each alert fires only once per day
     var has80PercentAlertFired  by mutableStateOf(false)
-
     var has100PercentAlertFired by mutableStateOf(false)
-
     var showBudgetPopup         by mutableStateOf<String?>(null)
 
-    // Resets daily alert flags — called at midnight or when budget goal changes
     fun resetDailyAlerts() {
         has80PercentAlertFired = false
         has100PercentAlertFired = false
         dailyCumulativeKwh = 0.0
     }
 
-    var isWeekend          by mutableStateOf(false)
-    var isHoliday          by mutableStateOf(false)
+    var isWeekend by mutableStateOf(false)
+    var isHoliday by mutableStateOf(false)
 
     // ── Live Monitor Feed ─────────────────────────────────────────────────────
     val liveReadings = mutableStateListOf(
@@ -337,55 +341,161 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     it.category.contains(searchQuery, ignoreCase = true)
         }
 
-    // ── History / Charts ──────────────────────────────────────────────────────
-    // DailyTotal, CategoryTotal and HourlyAverage are defined in EnergyReadingDao.kt
+    // ── Energy History (Room) ─────────────────────────────────────────────────
     var selectedFromDate  by mutableStateOf("")
     var selectedToDate    by mutableStateOf("")
-
     val dailyTotals       = mutableStateListOf<DailyTotal>()
     val categoryBreakdown = mutableStateListOf<CategoryTotal>()
     val hourlyAverages    = mutableStateListOf<HourlyAverage>()
 
-    fun loadHistoryForLastSevenDays() {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val cal = Calendar.getInstance()
-        dailyTotals.clear()
-        for (i in 6 downTo 0) {
-            cal.time = Date()
-            cal.add(Calendar.DAY_OF_YEAR, -i)
-            val date = sdf.format(cal.time)
-            val kwh  = round((8.0 + Math.random() * 14) * 10) / 10.0
-            dailyTotals.add(DailyTotal(date, kwh))
-        }
-        refreshBreakdownAndHourly()
-    }
-
-    fun loadHistoryForDateRange(from: String, to: String) {
-        // Full implementation queries Room EnergyReading table by date range
-        // For now reloads last 7 days as a fallback
-        loadHistoryForLastSevenDays()
-    }
-
-    private fun refreshBreakdownAndHourly() {
-        categoryBreakdown.clear()
-        val cats = listOf("Cooling", "Kitchen", "Laundry", "Lighting", "Heating")
-        cats.forEach { cat ->
-            val base = appliances.filter { it.category == cat }
-                .sumOf { it.wattage / 1000.0 * 6 }
-                .let { if (it == 0.0) Math.random() * 10 + 2 else it }
-            categoryBreakdown.add(CategoryTotal(cat, round(base * 10) / 10.0))
-        }
-
-        hourlyAverages.clear()
-        for (h in 0..23) {
-            val base = when (h) {
-                in 7..9   -> 2.2 + Math.random() * 0.8
-                in 17..21 -> 2.5 + Math.random() * 1.0
-                in 0..5   -> 0.3 + Math.random() * 0.3
-                else      -> 0.8 + Math.random() * 0.6
+    // ── Seed 30 days of historical data ──────────────────────────────────────
+    private suspend fun seedHistoricalDataIfNeeded() {
+        if (energyReadingRepository.getCount() > 0) return
+        val categories = listOf("Cooling", "Kitchen", "Laundry", "Lighting", "Heating")
+        val calendar   = java.util.Calendar.getInstance()
+        val readings   = mutableListOf<EnergyReading>()
+        for (dayOffset in 29 downTo 0) {
+            calendar.timeInMillis = System.currentTimeMillis()
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, -dayOffset)
+            val date = String.format(
+                "%04d-%02d-%02d",
+                calendar.get(java.util.Calendar.YEAR),
+                calendar.get(java.util.Calendar.MONTH) + 1,
+                calendar.get(java.util.Calendar.DAY_OF_MONTH)
+            )
+            val isWeekendDay = calendar.get(java.util.Calendar.DAY_OF_WEEK) in
+                    listOf(java.util.Calendar.SATURDAY, java.util.Calendar.SUNDAY)
+            for (hour in 0..23) {
+                val tariffTier = when (hour) {
+                    in 7..22 -> if (hour in 7..9 || hour in 17..21) "Peak" else "Shoulder"
+                    else     -> "Off-Peak"
+                }
+                val tariff = when (tariffTier) {
+                    "Peak"     -> 0.22
+                    "Shoulder" -> 0.15
+                    else       -> 0.10
+                }
+                categories.forEach { category ->
+                    val baseKwh = when (category) {
+                        "Cooling"  -> if (isWeekendDay) 1.9 else 1.6
+                        "Kitchen"  -> if (hour in 7..9 || hour in 17..20) 1.4 else 0.3
+                        "Laundry"  -> if (hour in 8..11) 0.6 else 0.1
+                        "Lighting" -> if (hour in 6..8 || hour in 18..23) 0.15 else 0.02
+                        "Heating"  -> if (isWeekendDay) 0.8 else 0.5
+                        else       -> 0.2
+                    }
+                    val seed = (dayOffset * 24L + hour) * categories.size + categories.indexOf(category)
+                    val variation = (kotlin.random.Random(seed).nextDouble() * 0.3 - 0.15)
+                    val kwh = (baseKwh + variation).coerceAtLeast(0.01)
+                    readings.add(
+                        EnergyReading(
+                            date         = date,
+                            hour         = hour,
+                            category     = category,
+                            totalKwh     = kwh,
+                            tariffTier   = tariffTier,
+                            avgTempC     = 22.0 + kotlin.random.Random(seed + 1).nextDouble() * 8,
+                            avgOccupancy = if (isWeekendDay) 3 else 2,
+                            totalCost    = kwh * tariff
+                        )
+                    )
+                }
             }
-            hourlyAverages.add(HourlyAverage(h, round(base * 100) / 100.0))
         }
+        energyReadingRepository.insertAll(readings)
+    }
+
+    fun loadHistoryForLastSevenDays() {
+        val cal = java.util.Calendar.getInstance()
+        val toDate = String.format(
+            "%04d-%02d-%02d",
+            cal.get(java.util.Calendar.YEAR),
+            cal.get(java.util.Calendar.MONTH) + 1,
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -6)
+        val fromDate = String.format(
+            "%04d-%02d-%02d",
+            cal.get(java.util.Calendar.YEAR),
+            cal.get(java.util.Calendar.MONTH) + 1,
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+        selectedFromDate = fromDate
+        selectedToDate   = toDate
+        loadHistoryForDateRange(fromDate, toDate)
+    }
+
+    fun loadHistoryForDateRange(fromDate: String, toDate: String) {
+        viewModelScope.launch {
+            val totals = energyReadingRepository.getDailyTotals(fromDate, toDate).first()
+            dailyTotals.clear()
+            dailyTotals.addAll(totals)
+        }
+        viewModelScope.launch {
+            val breakdown = energyReadingRepository.getCategoryBreakdown(fromDate, toDate).first()
+            categoryBreakdown.clear()
+            categoryBreakdown.addAll(breakdown)
+        }
+        viewModelScope.launch {
+            val averages = energyReadingRepository.getHourlyAverages(fromDate, toDate).first()
+            hourlyAverages.clear()
+            hourlyAverages.addAll(averages)
+        }
+    }
+
+    // ── Hourly accumulator ────────────────────────────────────────────────────
+    private var hourlyKwhSum       = 0.0
+    private var hourlyTempSum      = 0.0
+    private var hourlyOccupancySum = 0
+    private var hourlyReadingCount = 0
+    private var readingsThisHour   = 0
+    private val READINGS_PER_HOUR  = 1200
+
+    fun accumulateHourlyReading(row: CsvSensorRow) {
+        hourlyKwhSum       += row.energyKwh
+        hourlyTempSum      += row.roomTempC
+        hourlyOccupancySum += row.occupancyCount
+        hourlyReadingCount++
+        readingsThisHour++
+        if (readingsThisHour >= READINGS_PER_HOUR) {
+            val cal  = java.util.Calendar.getInstance()
+            val date = String.format(
+                "%04d-%02d-%02d",
+                cal.get(java.util.Calendar.YEAR),
+                cal.get(java.util.Calendar.MONTH) + 1,
+                cal.get(java.util.Calendar.DAY_OF_MONTH)
+            )
+            val category = mapApplianceToCategory(row.applianceName)
+            viewModelScope.launch {
+                energyReadingRepository.insert(
+                    EnergyReading(
+                        date         = date,
+                        hour         = cal.get(java.util.Calendar.HOUR_OF_DAY),
+                        category     = category,
+                        totalKwh     = hourlyKwhSum,
+                        tariffTier   = row.tariffTier,
+                        avgTempC     = hourlyTempSum / hourlyReadingCount,
+                        avgOccupancy = hourlyOccupancySum / hourlyReadingCount,
+                        totalCost    = hourlyKwhSum * row.tariffPerKwh
+                    )
+                )
+            }
+            hourlyKwhSum       = 0.0
+            hourlyTempSum      = 0.0
+            hourlyOccupancySum = 0
+            hourlyReadingCount = 0
+            readingsThisHour   = 0
+        }
+    }
+
+    private fun mapApplianceToCategory(applianceName: String): String = when (applianceName.lowercase()) {
+        "ac", "air_conditioner", "air conditioner" -> "Cooling"
+        "heater"                                    -> "Heating"
+        "washing_machine", "washing machine"        -> "Laundry"
+        "dishwasher", "oven", "microwave",
+        "fridge", "kitchen"                         -> "Kitchen"
+        "lights", "lighting"                        -> "Lighting"
+        else                                        -> "Other"
     }
 
     // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
@@ -425,8 +535,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     fun updateForecast(predictedKwh: Double) { nextHourForecastKwh = predictedKwh }
 
     // ── Household Messaging (Firestore-backed) ────────────────────────────────
-    // Stored in Firestore: /households/{householdId}/messages/{messageId}
-    // Real-time snapshot listener keeps all household devices in sync.
     val messages = mutableStateListOf<HouseholdMessage>()
 
     fun listenToMessages() {
@@ -473,7 +581,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         val minute    = cal.get(Calendar.MINUTE)
         val amPm      = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
         val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
-
         firestore.collection("households")
             .document(householdId)
             .collection("messages")
@@ -495,7 +602,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         val minute    = cal.get(Calendar.MINUTE)
         val amPm      = if (cal.get(Calendar.AM_PM) == Calendar.AM) "AM" else "PM"
         val timestamp = String.format("%d:%02d %s", if (hour == 0) 12 else hour, minute, amPm)
-
         firestore.collection("households")
             .document(householdId)
             .collection("messages")
@@ -519,16 +625,15 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         if (isSimulatorRunning) return
         isSimulatorRunning = true
         simulator = SmartMeterSimulator(context)
-
         viewModelScope.launch {
             simulator!!.stream().collect { row ->
-                currentEnergyKwh  = row.energyKwh
-                currentTariff     = row.tariffPerKwh
-                currentTariffTier = row.tariffTier
-                roomTempC         = row.roomTempC
-                occupancyCount    = row.occupancyCount
-                isWeekend         = row.isWeekend
-                isHoliday         = row.isHoliday
+                currentEnergyKwh   = row.energyKwh
+                currentTariff      = row.tariffPerKwh
+                currentTariffTier  = row.tariffTier
+                roomTempC          = row.roomTempC
+                occupancyCount     = row.occupancyCount
+                isWeekend          = row.isWeekend
+                isHoliday          = row.isHoliday
                 dailyCumulativeKwh += row.energyKwh * 0.01
 
                 val newReading = SensorReading(
@@ -550,7 +655,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 contextState = result.stateLabel
                 contextTip   = result.tip
 
-                // Only send budget alerts ONCE per threshold
                 if (budgetProgress >= 1.0f && !has100PercentAlertFired) {
                     has100PercentAlertFired = true
                     val alertMsg = "Budget Exceeded: You have used ${"%.1f".format(dailyCumulativeKwh)} / ${budgetGoal} kWh (100%). Avoid running high-wattage appliances."
@@ -563,6 +667,23 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     showBudgetPopup = alertMsg
                 }
 
+                // ── TFLite next-hour forecast ─────────────────────────────────
+                // Build ForecastInput from current sensor values and run the
+                // on-device TFLite model to predict next-hour energy consumption.
+                val forecastInput = ForecastInput(
+                    energyKwh          = row.energyKwh.toFloat(),
+                    roomTempC          = row.roomTempC.toFloat(),
+                    occupancyCount     = row.occupancyCount.toFloat(),
+                    tariffPerKwh       = row.tariffPerKwh.toFloat(),
+                    isWeekend          = if (row.isWeekend) 1f else 0f,
+                    dayOfWeek          = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).toFloat(),
+                    hourOfDay          = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).toFloat(),
+                    isHoliday          = if (row.isHoliday) 1f else 0f,
+                    cumulativeDailyKwh = dailyCumulativeKwh.toFloat()
+                )
+                updateForecast(forecaster.predict(forecastInput).toDouble())
+
+                accumulateHourlyReading(row)
             }
         }
     }
