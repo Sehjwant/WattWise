@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.CircularProgressIndicator
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,30 +94,6 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
     )
     val completionCount = completionFields.count { it }
     val completionFraction = completionCount / completionFields.size.toFloat()
-
-    // Profile Avatar
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(78.dp)
-                .background(
-                    if (viewModel.isOwner) Color(0xFF1B5E20) else Color(0xFF1565C0),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = viewModel.fullName.firstOrNull()?.uppercase() ?: "?",
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-    Spacer(modifier = Modifier.height(4.dp))
 
     // Confirmation dialog for removing a member
     if (showRemoveDialog) {
@@ -274,6 +251,46 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
+            // Profile Avatar with Completion Ring
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { completionFraction },
+                        modifier = Modifier.size(96.dp),
+                        color = Color(0xFF2E7D32),
+                        trackColor = Color(0xFFE0E0E0),
+                        strokeWidth = 6.dp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(78.dp)
+                            .background(
+                                if (viewModel.isOwner) Color(0xFF1B5E20) else Color(0xFF1565C0),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = viewModel.fullName.firstOrNull()?.uppercase() ?: "?",
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "Profile ${(completionFraction * 100).toInt()}% complete",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Role Badge
             Row(
