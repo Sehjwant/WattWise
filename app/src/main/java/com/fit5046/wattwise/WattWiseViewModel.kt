@@ -45,6 +45,9 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
+    // ── TFLite on-device forecaster ───────────────────────────────────────────
+    private val forecaster = EnergyForecaster(application)
+
     // ── Auth / User ───────────────────────────────────────────────────────────
     var isLoggedIn    by mutableStateOf(false)
     var isOwner       by mutableStateOf(true)
@@ -375,7 +378,6 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                         "Heating"  -> if (isWeekendDay) 0.8 else 0.5
                         else       -> 0.2
                     }
-                    // Fixed seed for consistent data across app restarts
                     val seed = (dayOffset * 24L + hour) * categories.size + categories.indexOf(category)
                     val variation = (kotlin.random.Random(seed).nextDouble() * 0.3 - 0.15)
                     val kwh = (baseKwh + variation).coerceAtLeast(0.01)
@@ -657,6 +659,22 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     sendAlertMessage(alertMsg)
                     showBudgetPopup = alertMsg
                 }
+
+                // ── TFLite next-hour forecast ─────────────────────────────────
+                // Build ForecastInput from current sensor values and run the
+                // on-device TFLite model to predict next-hour energy consumption.
+                val forecastInput = ForecastInput(
+                    energyKwh          = row.energyKwh.toFloat(),
+                    roomTempC          = row.roomTempC.toFloat(),
+                    occupancyCount     = row.occupancyCount.toFloat(),
+                    tariffPerKwh       = row.tariffPerKwh.toFloat(),
+                    isWeekend          = if (row.isWeekend) 1f else 0f,
+                    dayOfWeek          = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).toFloat(),
+                    hourOfDay          = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).toFloat(),
+                    isHoliday          = if (row.isHoliday) 1f else 0f,
+                    cumulativeDailyKwh = dailyCumulativeKwh.toFloat()
+                )
+                updateForecast(forecaster.predict(forecastInput).toDouble())
 
                 accumulateHourlyReading(row)
             }
