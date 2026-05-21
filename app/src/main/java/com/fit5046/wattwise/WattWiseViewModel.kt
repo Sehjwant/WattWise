@@ -68,6 +68,38 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         householdMembers.clear()
     }
 
+    fun deleteAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val user = auth.currentUser
+        if (user == null) {
+            onError("No user logged in")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                // Delete user data from Firestore first
+                firestore.collection("users").document(user.uid).delete().await()
+                // Then delete the Firebase Auth account
+                user.delete().await()
+                // Clear local state
+                isLoggedIn = false
+                fullName   = ""
+                suburb     = ""
+                authError  = null
+                messages.clear()
+                householdMembers.clear()
+                onSuccess()
+            } catch (e: Exception) {
+                // Firebase requires recent login for account deletion
+                // If this fails it means the session is too old
+                if (e.message?.contains("requires-recent-login") == true) {
+                    onError("For security, please sign out and sign back in before deleting your account.")
+                } else {
+                    onError(e.message ?: "Failed to delete account")
+                }
+            }
+        }
+    }
+
     // ── Email/Password Sign In ────────────────────────────────────────────────
     fun signInWithEmail(email: String, password: String, onSuccess: () -> Unit) {
         isAuthLoading = true
