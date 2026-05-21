@@ -52,6 +52,7 @@ fun RegisterScreen(
     var showSuccessDialog by remember { mutableStateOf(false) }
     var emailError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    var suburbInput by remember { mutableStateOf("") }
 
     // ── Google Sign-In setup ──────────────────────────────────────────────────
     val googleSignInClient = remember {
@@ -248,6 +249,21 @@ fun RegisterScreen(
                         Text("Member", modifier = Modifier.weight(1f))
                     }
 
+                    if (selectedRole == "Owner") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = /* you need a local var */ suburbInput,
+                            onValueChange = { suburbInput = it },
+                            label = { Text("Suburb") },
+                            placeholder = { Text("e.g. Clayton, VIC") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF2E7D32),
+                                focusedLabelColor = Color(0xFF2E7D32)
+                            )
+                        )
+                    }
+
                     if (selectedRole == "Member") {
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
@@ -294,6 +310,7 @@ fun RegisterScreen(
                                     password = password,
                                     role = selectedRole,
                                     householdIdInput = householdIdInput,
+                                    suburb = suburbInput,
                                     onSuccess = { showSuccessDialog = true }
                                 )
                             }

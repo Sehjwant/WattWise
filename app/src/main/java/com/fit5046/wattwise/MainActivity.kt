@@ -180,22 +180,7 @@ fun WattWiseApp() {
                     NavigationDestination.entries.forEach { destination ->
                         NavigationBarItem(
                             icon = {
-                                if (destination == NavigationDestination.HOME) {
-                                    BadgedBox(badge = {
-                                        val alertCount = viewModel.messages.count {
-                                            it.type == MessageType.ALERT
-                                        }
-                                        if (alertCount > 0) {
-                                            Badge(containerColor = Color(0xFFE53935)) {
-                                                Text("$alertCount", color = Color.White)
-                                            }
-                                        }
-                                    }) {
-                                        Icon(destination.icon, contentDescription = destination.label)
-                                    }
-                                } else {
                                     Icon(destination.icon, contentDescription = destination.label)
-                                }
                             },
                             label    = { Text(destination.label) },
                             selected = currentRoute == destination.route,

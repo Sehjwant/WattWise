@@ -85,6 +85,11 @@ fun MessagingScreen(
         }
     }
 
+    // Mark alerts as read when user opens messaging screen
+    LaunchedEffect(Unit) {
+        viewModel.markAlertsAsRead()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
