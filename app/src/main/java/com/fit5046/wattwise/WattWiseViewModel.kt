@@ -112,7 +112,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     isOwner     = role == "Owner"
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
-                    saveUserProfile(user.uid, name, email, role, householdId)
+                    saveUserProfile(user.uid, name, email, role, householdId, suburb)
                     // Sign out after creating account so user must log in
                     auth.signOut()
                     isLoggedIn = false
@@ -165,7 +165,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Firestore: Save User Profile ──────────────────────────────────────────
     private suspend fun saveUserProfile(
-        uid: String, name: String, email: String, role: String, hhId: String
+        uid: String, name: String, email: String, role: String, hhId: String, suburb: String = ""
     ) {
         try {
             firestore.collection("users").document(uid).set(hashMapOf(
@@ -173,6 +173,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 "email"       to email,
                 "role"        to role,
                 "householdId" to hhId,
+                "suburb"      to suburb,
                 "createdAt"   to com.google.firebase.Timestamp.now()
             )).await()
         } catch (e: Exception) {
@@ -189,6 +190,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName    = doc.getString("fullName") ?: fullName
                     isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
+                    suburb      = doc.getString("suburb") ?: suburb
                     loadHouseholdMembers()
                     listenToMessages()
                 }
