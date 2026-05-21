@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.OutlinedButton
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -721,13 +722,17 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
                                 }
                                 Button(
                                     onClick = {
-                                        // TODO: wire to Firebase delete in A4
-                                        viewModel.logout()
+                                        viewModel.deleteAccount(
+                                            onSuccess = { /* isLoggedIn = false handles navigation */ },
+                                            onError = { errorMsg ->
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    errorMsg,
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        )
                                     },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFB71C1C)
-                                    )
                                 ) {
                                     Text("Yes, delete", fontSize = 13.sp)
                                 }
