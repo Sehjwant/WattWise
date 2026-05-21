@@ -199,6 +199,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     }
                     googleDisplayName = fullName
                     isLoggedIn = true
+                    listenToMemberStatus(user.uid)
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -302,6 +303,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             try {
                 firestore.collection("users").document(member.uid)
                     .update("status", "approved").await()
+                sendAlertMessage("${member.name} has been approved and joined the household.")
             } catch (e: Exception) {
                 Log.e("WattWiseMembers", "Failed to approve member", e)
             }
@@ -313,6 +315,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             try {
                 firestore.collection("users").document(member.uid)
                     .delete().await()
+                sendAlertMessage("${member.name} has been removed from the household by the owner.")
             } catch (e: Exception) {
                 Log.e("WattWiseMembers", "Failed to reject member", e)
             }
