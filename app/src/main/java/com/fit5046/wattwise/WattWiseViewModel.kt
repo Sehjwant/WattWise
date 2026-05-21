@@ -53,6 +53,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     var isAuthLoading by mutableStateOf(false)
     var googleSignInType by mutableStateOf<String?>(null)
     var googleDisplayName by mutableStateOf("")
+    var memberStatus by mutableStateOf("approved")
     var unreadAlertCount by mutableStateOf(0)
         private set
     fun markAlertsAsRead() {
@@ -113,6 +114,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
                     loadUserProfile(user.uid)
                     isLoggedIn = true
+                    // Start listening for status changes (approval/rejection)
+                    listenToMemberStatus(user.uid)
                     onSuccess()
                 }
             } catch (e: Exception) {
@@ -146,6 +149,11 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     householdId = if (isOwner) "HH-${System.currentTimeMillis() % 100000}"
                     else householdIdInput.ifBlank { "HH-00000" }
                     saveUserProfile(user.uid, name, email, role, householdId, suburb)
+                    if (role == "Owner") {
+                        memberStatus = "approved"
+                    } else {
+                        memberStatus = "pending"
+                    }
                     // Sign out after creating account so user must log in
                     auth.signOut()
                     isLoggedIn = false
@@ -204,12 +212,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
         uid: String, name: String, email: String, role: String, hhId: String, suburb: String = ""
     ) {
         try {
+            val status = if (role == "Owner") "approved" else "pending"
             firestore.collection("users").document(uid).set(hashMapOf(
                 "fullName"    to name,
                 "email"       to email,
                 "role"        to role,
                 "householdId" to hhId,
                 "suburb"      to suburb,
+                "status"      to status,
                 "createdAt"   to com.google.firebase.Timestamp.now()
             )).await()
         } catch (e: Exception) {
@@ -226,6 +236,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     fullName    = doc.getString("fullName") ?: fullName
                     isOwner     = doc.getString("role") == "Owner"
                     householdId = doc.getString("householdId") ?: householdId
+                    memberStatus = doc.getString("status") ?: "approved"
                     suburb      = doc.getString("suburb") ?: suburb
                     loadHouseholdMembers()
                     listenToMessages()
@@ -572,6 +583,22 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Household Messaging (Firestore-backed) ────────────────────────────────
     val messages = mutableStateListOf<HouseholdMessage>()
 
+    // ── Listen for member status changes (approval/rejection) ─────────────────
+    fun listenToMemberStatus(uid: String) {
+        firestore.collection("users").document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("WattWiseStatus", "Status listener failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    memberStatus = snapshot.getString("status") ?: "approved"
+                } else {
+                    // Document was deleted — member was removed
+                    memberStatus = "removed"
+                }
+            }
+    }
     fun listenToMessages() {
         firestore.collection("households")
             .document(householdId)
