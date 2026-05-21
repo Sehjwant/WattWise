@@ -30,7 +30,9 @@ data class SensorReading(
 data class HouseholdMember(
     val name: String,
     val email: String,
-    val isOwner: Boolean = false
+    val isOwner: Boolean = false,
+    val uid: String = "",
+    val status: String = "approved"
 )
 
 class WattWiseViewModel(application: Application) : AndroidViewModel(application) {
@@ -258,17 +260,24 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 }
                 if (snapshot != null) {
                     householdMembers.clear()
+                    pendingMembers.clear()
                     for (doc in snapshot.documents) {
-                        val name  = doc.getString("fullName") ?: ""
-                        val email = doc.getString("email") ?: ""
-                        val role  = doc.getString("role") ?: "Member"
-                        householdMembers.add(
-                            HouseholdMember(
-                                name    = name,
-                                email   = email,
-                                isOwner = role == "Owner"
-                            )
+                        val name   = doc.getString("fullName") ?: ""
+                        val email  = doc.getString("email") ?: ""
+                        val role   = doc.getString("role") ?: "Member"
+                        val status = doc.getString("status") ?: "approved"
+                        val member = HouseholdMember(
+                            name    = name,
+                            email   = email,
+                            isOwner = role == "Owner",
+                            uid     = doc.id,
+                            status  = status
                         )
+                        if (status == "pending") {
+                            pendingMembers.add(member)
+                        } else {
+                            householdMembers.add(member)
+                        }
                     }
                 }
             }
@@ -286,7 +295,29 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Household Members ─────────────────────────────────────────────────────
     val householdMembers = mutableStateListOf<HouseholdMember>()
+    val pendingMembers = mutableStateListOf<HouseholdMember>()
 
+    fun approveMember(member: HouseholdMember) {
+        viewModelScope.launch {
+            try {
+                firestore.collection("users").document(member.uid)
+                    .update("status", "approved").await()
+            } catch (e: Exception) {
+                Log.e("WattWiseMembers", "Failed to approve member", e)
+            }
+        }
+    }
+
+    fun rejectMember(member: HouseholdMember) {
+        viewModelScope.launch {
+            try {
+                firestore.collection("users").document(member.uid)
+                    .delete().await()
+            } catch (e: Exception) {
+                Log.e("WattWiseMembers", "Failed to reject member", e)
+            }
+        }
+    }
     fun removeMember(index: Int) {
         if (index >= 0 && index < householdMembers.size) {
             val member = householdMembers[index]
