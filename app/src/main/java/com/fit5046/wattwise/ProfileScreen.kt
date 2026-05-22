@@ -560,7 +560,68 @@ fun ProfileScreen(viewModel: WattWiseViewModel) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+// ── SECTION: Pending Requests (Owner only) ────────────────────
+            if (viewModel.isOwner && viewModel.pendingMembers.isNotEmpty()) {
+                SectionHeader(title = "Pending Requests")
 
+                Text(
+                    "${viewModel.pendingMembers.size} member(s) waiting for approval",
+                    fontSize = 12.sp, color = Color(0xFFE65100)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                viewModel.pendingMembers.forEach { member ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                        elevation = CardDefaults.cardElevation(1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xFFE65100), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    member.name.firstOrNull()?.uppercase() ?: "?",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(member.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(member.email, fontSize = 12.sp, color = Color.Gray)
+                            }
+                            // Approve button
+                            IconButton(
+                                onClick = { viewModel.approveMember(member) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Text("✅", fontSize = 20.sp)
+                            }
+                            // Reject button
+                            IconButton(
+                                onClick = { viewModel.rejectMember(member) },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Text("❌", fontSize = 20.sp)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             // SECTION 5: Household Members (Owner only)
             if (viewModel.isOwner) {
                 SectionHeader(title = "Household Members")
