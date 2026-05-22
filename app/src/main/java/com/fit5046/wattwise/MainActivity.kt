@@ -187,7 +187,12 @@ fun WattWiseApp() {
         viewModel.startSimulator(context)
     }
 
-    LaunchedEffect(viewModel.dailyCumulativeKwh, viewModel.budgetGoal) {
+    // Only re-schedule WorkManager when budgetGoal changes — NOT on every
+    // simulator tick. The previous key (dailyCumulativeKwh, budgetGoal) caused
+    // ExistingPeriodicWorkPolicy.UPDATE to reset the 15-min timer every 3 seconds,
+    // meaning the worker never actually ran. Now it schedules once on login
+    // (budgetGoal initial value) and again only if the user changes their budget.
+    LaunchedEffect(viewModel.budgetGoal) {
         WorkManagerScheduler.schedule(
             context       = context,
             cumulativeKwh = viewModel.dailyCumulativeKwh,
@@ -277,7 +282,7 @@ fun WattWiseApp() {
                     NavigationDestination.entries.forEach { destination ->
                         NavigationBarItem(
                             icon = {
-                                    Icon(destination.icon, contentDescription = destination.label)
+                                Icon(destination.icon, contentDescription = destination.label)
                             },
                             label    = { Text(destination.label) },
                             selected = currentRoute == destination.route,

@@ -341,7 +341,7 @@ fun AddEditApplianceScreen(
                         } else {
                             viewModel.addAppliance(
                                 Appliance(
-                                    id = viewModel.nextId(),
+                                    id = 0,  // Room auto-generates the ID on insert
                                     name = name,
                                     category = selectedCategory,
                                     wattage = w!!,
