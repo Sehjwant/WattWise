@@ -569,13 +569,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun mapApplianceToCategory(applianceName: String): String = when (applianceName.lowercase()) {
-        "ac", "air_conditioner", "air conditioner" -> "Cooling"
-        "heater"                                    -> "Heating"
-        "washing_machine", "washing machine"        -> "Laundry"
+        "ac", "air_conditioner", "air conditioner"          -> "Cooling"
+        "heater", "water_heater"                            -> "Heating"
+        "washing_machine", "washing machine"                -> "Laundry"
         "dishwasher", "oven", "microwave",
-        "fridge", "kitchen"                         -> "Kitchen"
-        "lights", "lighting"                        -> "Lighting"
-        else                                        -> "Other"
+        "fridge", "kitchen"                                 -> "Kitchen"
+        "lights", "lighting"                                -> "Lighting"
+        "tv", "computer", "phone_charger"                   -> "Lighting"
+        else                                                -> "Other"
     }
 
     // ── Weather (Retrofit / OpenWeatherMap) ───────────────────────────────────
