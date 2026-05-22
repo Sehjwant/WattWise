@@ -291,7 +291,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Daily Budget", fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF33691E))
-                        Text("${viewModel.dailyCumulativeKwh} / ${viewModel.budgetGoal} kWh",
+                        Text("${String.format("%.2f", viewModel.dailyCumulativeKwh)} / ${viewModel.budgetGoal} kWh",
                             fontSize = 13.sp, color = Color.Gray)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
