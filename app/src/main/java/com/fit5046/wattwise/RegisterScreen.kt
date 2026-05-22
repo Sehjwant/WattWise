@@ -89,7 +89,7 @@ fun RegisterScreen(
                 )
             },
             text = {
-                Text("Your WattWise account has been created successfully. Please sign in with your credentials.")
+                Text("Account created! A verification email has been sent to your Gmail address. Please click the link in that email before signing in.")
             },
             confirmButton = {
                 TextButton(

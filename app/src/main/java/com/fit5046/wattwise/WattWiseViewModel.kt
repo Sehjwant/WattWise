@@ -13,6 +13,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.tasks.await
 import android.util.Log
 import java.util.Calendar
@@ -64,12 +66,21 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     fun logout() {
         auth.signOut()
+        applianceListener?.remove()       // Stop appliance sync
+        messagesListener?.remove()        // Stop messages — prevents cross-household leakage
+        memberStatusListener?.remove()    // Stop member status updates
+        householdMembersListener?.remove()// Stop household member list
+        applianceListener = null
+        messagesListener = null
+        memberStatusListener = null
+        householdMembersListener = null
         isLoggedIn = false
         fullName   = ""
         suburb     = ""
         authError  = null
         messages.clear()
         householdMembers.clear()
+        pendingMembers.clear()
     }
 
     fun deleteAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -113,6 +124,14 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                 auth.signInWithEmailAndPassword(email, password).await()
                 val user = auth.currentUser
                 if (user != null) {
+                    // Block login if email not yet verified.
+                    // Google Sign-In users are auto-verified by Google so this
+                    // only affects email/password accounts.
+                    if (!user.isEmailVerified) {
+                        auth.signOut()
+                        authError = "Please verify your email before signing in. Check your inbox for a verification link from Firebase."
+                        return@launch
+                    }
                     fullName = user.displayName ?: user.email?.substringBefore("@") ?: ""
                     loadUserProfile(user.uid)
                     isLoggedIn = true
@@ -156,7 +175,15 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     } else {
                         memberStatus = "pending"
                     }
-                    // Sign out after creating account so user must log in
+                    // Send Firebase verification email to the registered address.
+                    // User must click the link before they can sign in.
+                    try {
+                        user.sendEmailVerification().await()
+                        Log.d("WattWiseAuth", "Verification email sent to $email")
+                    } catch (e: Exception) {
+                        Log.e("WattWiseAuth", "Failed to send verification email", e)
+                    }
+                    // Sign out after creating account so user must verify then log in
                     auth.signOut()
                     isLoggedIn = false
                     onSuccess()
@@ -192,6 +219,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                         saveUserProfile(user.uid, fullName, user.email ?: "", "Owner", householdId)
                         loadHouseholdMembers()
                         listenToMessages()
+                        startApplianceSync()
                         googleSignInType = "new"
                     } else {
                         loadUserProfile(user.uid)
@@ -243,6 +271,7 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
                     suburb      = doc.getString("suburb") ?: suburb
                     loadHouseholdMembers()
                     listenToMessages()
+                    startApplianceSync() // Sync household appliances in real time
                 }
             } catch (e: Exception) {
                 Log.e("WattWiseAuth", "Failed to load user profile", e)
@@ -252,7 +281,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
 
     // ── Firestore: Load Household Members ─────────────────────────────────────
     fun loadHouseholdMembers() {
-        firestore.collection("users")
+        householdMembersListener?.remove()
+        householdMembersListener = firestore.collection("users")
             .whereEqualTo("householdId", householdId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -346,30 +376,159 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     val appliances = mutableStateListOf<Appliance>()
 
     init {
+        // ── Coroutine 1: Seed defaults ONLY on true first launch ──────────────
+        // Uses a one-shot getCount() check rather than watching the Flow, so
+        // deleting all appliances shows the empty state instead of re-seeding.
         viewModelScope.launch {
-            dao.getAll().collect { list ->
-                if (list.isEmpty()) {
-                    dao.insert(Appliance(name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
-                    dao.insert(Appliance(name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
-                    dao.insert(Appliance(name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
-                    dao.insert(Appliance(name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
-                    dao.insert(Appliance(name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
-                } else {
-                    appliances.clear()
-                    appliances.addAll(list)
-                }
+            if (dao.getCount() == 0) {
+                dao.insert(Appliance(name = "Samsung Washing Machine",    category = "Laundry",  wattage = 500,  notes = "Runs during off-peak hours"))
+                dao.insert(Appliance(name = "Mitsubishi Air Conditioner", category = "Cooling",  wattage = 1800, notes = "Set to 24°C"))
+                dao.insert(Appliance(name = "LG Dishwasher",              category = "Kitchen",  wattage = 1200, notes = "Eco mode enabled"))
+                dao.insert(Appliance(name = "LED Downlights x10",         category = "Lighting", wattage = 100,  notes = "Living room"))
+                dao.insert(Appliance(name = "Electric Oven",              category = "Kitchen",  wattage = 2400, notes = ""))
             }
         }
+
+        // ── Coroutine 2: Observe the appliance list reactively ────────────────
+        // Always syncs the UI list with Room — including showing empty state
+        // when the owner has deleted all appliances.
+        viewModelScope.launch {
+            dao.getAll().collect { list ->
+                appliances.clear()
+                appliances.addAll(list)
+            }
+        }
+
+        // ── Coroutine 3: Seed historical energy data + load initial chart data ─
         viewModelScope.launch {
             seedHistoricalDataIfNeeded()
             loadHistoryForLastSevenDays()
         }
     }
 
-    fun addAppliance(appliance: Appliance) { viewModelScope.launch { dao.insert(appliance) } }
-    fun deleteAppliance(id: Int)           { viewModelScope.launch { dao.deleteById(id) } }
-    fun updateAppliance(updated: Appliance){ viewModelScope.launch { dao.update(updated) } }
-    fun nextId(): Int = (appliances.maxOfOrNull { it.id } ?: 0) + 1
+    fun addAppliance(appliance: Appliance) {
+        viewModelScope.launch {
+            // Insert into local Room first — get the auto-generated ID back
+            val generatedId = dao.insert(appliance).toInt()
+            // Sync to Firestore so all household members receive the change
+            syncApplianceToFirestore(appliance.copy(id = generatedId))
+        }
+    }
+
+    fun deleteAppliance(id: Int) {
+        viewModelScope.launch {
+            dao.deleteById(id)
+            // Remove from Firestore so Members see it disappear immediately
+            firestore.collection("households")
+                .document(householdId)
+                .collection("appliances")
+                .document(id.toString())
+                .delete()
+                .addOnFailureListener { e ->
+                    Log.e("WattWiseAppliances", "Failed to delete from Firestore", e)
+                }
+        }
+    }
+
+    fun updateAppliance(updated: Appliance) {
+        viewModelScope.launch {
+            dao.update(updated)
+            // Push update to Firestore so Members see the edit immediately
+            syncApplianceToFirestore(updated)
+        }
+    }
+
+    // ── Firestore appliance sync helpers ──────────────────────────────────────
+    private fun syncApplianceToFirestore(appliance: Appliance) {
+        firestore.collection("households")
+            .document(householdId)
+            .collection("appliances")
+            .document(appliance.id.toString())
+            .set(hashMapOf(
+                "id"       to appliance.id,
+                "name"     to appliance.name,
+                "category" to appliance.category,
+                "wattage"  to appliance.wattage,
+                "notes"    to appliance.notes
+            ))
+            .addOnFailureListener { e ->
+                Log.e("WattWiseAppliances", "Failed to sync appliance to Firestore", e)
+            }
+    }
+
+    // ── Firestore real-time listener: syncs household appliances to local Room ─
+    // Called after login for ALL users (Owner + Members).
+    // Uses documentChanges (incremental) to avoid wiping and re-inserting the
+    // entire list on every snapshot — prevents flickering in the UI.
+    private var applianceListener: ListenerRegistration? = null
+
+    fun startApplianceSync() {
+        applianceListener?.remove() // Remove any previous listener before re-subscribing
+        applianceListener = firestore
+            .collection("households")
+            .document(householdId)
+            .collection("appliances")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("WattWiseAppliances", "Appliance sync listener failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot == null) return@addSnapshotListener
+
+                viewModelScope.launch {
+                    // Full reconciliation: sync local Room to exactly match Firestore.
+                    // Using documentChanges alone was not enough — both Owner and Member
+                    // devices seed 5 default appliances into their own Room on init.
+                    // Those seeded appliances are local-only and never REMOVED from
+                    // Firestore (they were never there), so documentChanges never
+                    // deletes them from Member's Room. This full-replace approach
+                    // removes any local appliance not present in Firestore, then
+                    // upserts everything that is. Safe and idempotent on every snapshot.
+
+                    // Step 1: build the Firestore set
+                    val firestoreAppliances = snapshot.documents.mapNotNull { doc ->
+                        Appliance(
+                            id       = doc.getLong("id")?.toInt() ?: return@mapNotNull null,
+                            name     = doc.getString("name") ?: "",
+                            category = doc.getString("category") ?: "",
+                            wattage  = doc.getLong("wattage")?.toInt() ?: 0,
+                            notes    = doc.getString("notes") ?: ""
+                        )
+                    }
+
+                    // Step 2: delete local appliances missing from Firestore
+                    // (covers seeded defaults that Owner never added, or Owner deletions)
+                    val firestoreIds = firestoreAppliances.map { it.id }.toSet()
+                    val localAppliances = dao.getAll().first()
+                    for (local in localAppliances) {
+                        if (local.id !in firestoreIds) {
+                            dao.deleteById(local.id)
+                        }
+                    }
+
+                    // Step 3: upsert all Firestore appliances into local Room
+                    for (appliance in firestoreAppliances) {
+                        dao.insert(appliance) // REPLACE handles add + edit
+                    }
+                }
+            }
+
+        // Owner: push ALL existing local Room appliances to Firestore on every login.
+        // Seeded appliances (from init) only exist in Room and are never in Firestore
+        // until explicitly written. Without this, Members see an empty list because
+        // the Firestore listener has nothing to return on first subscribe.
+        // Using .set() with the Room id as document id makes this idempotent —
+        // safe to run multiple times, just overwrites with the same data.
+        if (isOwner) {
+            viewModelScope.launch {
+                val localAppliances = dao.getAll().first()
+                for (appliance in localAppliances) {
+                    syncApplianceToFirestore(appliance)
+                }
+                Log.d("WattWiseAppliances", "Pushed ${localAppliances.size} appliances to Firestore")
+            }
+        }
+    }
 
     // ── Sensor / ContextEngine ────────────────────────────────────────────────
     var currentEnergyKwh   by mutableStateOf(0.85)
@@ -618,9 +777,16 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
     // ── Household Messaging (Firestore-backed) ────────────────────────────────
     val messages = mutableStateListOf<HouseholdMessage>()
 
+    // Listener references — kept so they can be removed on logout,
+    // preventing ghost listeners from leaking across user sessions.
+    private var messagesListener: ListenerRegistration? = null
+    private var memberStatusListener: ListenerRegistration? = null
+    private var householdMembersListener: ListenerRegistration? = null
+
     // ── Listen for member status changes (approval/rejection) ─────────────────
     fun listenToMemberStatus(uid: String) {
-        firestore.collection("users").document(uid)
+        memberStatusListener?.remove()
+        memberStatusListener = firestore.collection("users").document(uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("WattWiseStatus", "Status listener failed", error)
@@ -635,7 +801,8 @@ class WattWiseViewModel(application: Application) : AndroidViewModel(application
             }
     }
     fun listenToMessages() {
-        firestore.collection("households")
+        messagesListener?.remove() // Remove previous listener to prevent cross-household leakage
+        messagesListener = firestore.collection("households")
             .document(householdId)
             .collection("messages")
             .orderBy("createdAt", Query.Direction.ASCENDING)
