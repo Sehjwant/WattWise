@@ -15,12 +15,16 @@ interface ApplianceDao {
     fun getAll(): Flow<List<Appliance>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(appliance: Appliance)
+    suspend fun insert(appliance: Appliance): Long  // Returns auto-generated Room ID for Firestore sync
 
     @Update
     suspend fun update(appliance: Appliance)
 
     @Query("DELETE FROM appliances WHERE id = :id")
     suspend fun deleteById(id: Int)
-}
 
+    // One-shot count check — used to seed defaults only on true first launch,
+    // not every time the list becomes empty (which would re-seed after deletes)
+    @Query("SELECT COUNT(*) FROM appliances")
+    suspend fun getCount(): Int
+}
