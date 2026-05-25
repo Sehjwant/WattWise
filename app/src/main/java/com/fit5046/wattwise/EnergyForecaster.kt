@@ -10,7 +10,7 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
 /**
- * EnergyForecaster
+ * *EnergyForecaster
  *
  * On-device next-hour energy consumption forecasting using a
  * pre-trained TensorFlow Lite model (energy_forecast.tflite).
